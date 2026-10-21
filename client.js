@@ -24,6 +24,14 @@ window.__ModuleLoader__.load({
     const TAB_ID = 'dsh-sticky-notes'
     const TAB_KIND = 'sticky-notes'
 
+    // A note opened outside the manager page is a resource tab: the address is
+    // its content identity, so two notes are two tabs and reopening one note
+    // focuses the tab it already has.
+    const NOTE_VIEW_ID = `${PACKAGE}/note`
+    const NOTE_VIEW_KIND = 'sticky-note'
+    const NOTE_ADDRESS_PREFIX = 'dsh-resource://sticky-note/'
+    const NOTE_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/
+
     // ── Remote contribution ────────────────────────────────────────────────
     //
     // The Host manifest validates both directions strictly. The browser copy
@@ -111,9 +119,9 @@ window.__ModuleLoader__.load({
 .dsn-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
 .dsn-chip[data-global]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Right action rail: a 2x2 grid inset by the card padding on every side, so the
+/* Right action rail: a 3x2 grid inset by the card padding on every side, so the
    dashed rule has equal breathing room on both sides. */
-.dsn-row-rail{display:grid;grid-template-columns:repeat(2,34px);grid-template-rows:repeat(2,1fr);flex:none;align-self:stretch;padding:10px 12px;border-left:1px dashed var(--dsw-alias-border-l2);border-radius:0 11px 11px 0;overflow:hidden}
+.dsn-row-rail{display:grid;grid-template-columns:repeat(3,34px);grid-template-rows:repeat(2,1fr);flex:none;align-self:stretch;padding:10px 12px;border-left:1px dashed var(--dsw-alias-border-l2);border-radius:0 11px 11px 0;overflow:hidden}
 .dsn-row-rail .dsn-iconbtn{width:100%;height:100%;min-height:0;border-radius:0;border:none}
 .dsn-row-rail .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsn-row-rail .dsn-iconbtn:focus-visible{outline-offset:-2px}
@@ -144,6 +152,15 @@ window.__ModuleLoader__.load({
 .dsn-detail-status{font-size:11px;line-height:20px;padding:0 12px 6px;color:var(--dsw-alias-label-secondary)}
 .dsn-detail-status[data-success]{color:var(--dsw-alias-state-success-primary)}
 .dsn-detail-status[data-error]{color:var(--dsw-alias-state-error-primary)}
+/* A note opened as its own Sidebar/floating tab; the tab chrome owns the title. */
+.dsn-viewer{height:100%;min-height:0;display:flex;flex-direction:column;overflow:hidden;color:var(--dsw-alias-label-primary);font-size:13px;font-family:inherit}
+.dsn-viewer-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
+.dsn-viewer-bar .dsn-btn{min-height:28px;line-height:20px;font-size:12px;padding:2px 9px}
+.dsn-viewer-status{font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary);margin-left:auto;text-align:right}
+.dsn-viewer-status[data-success]{color:var(--dsw-alias-state-success-primary)}
+.dsn-viewer-status[data-error]{color:var(--dsw-alias-state-error-primary)}
+.dsn-viewer-body{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 20px;user-select:text;scrollbar-gutter:stable}
+.dsn-viewer-empty{flex:1;min-height:0;overflow-y:auto}
 .dsn-editor{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px}
 .dsn-editor input,.dsn-editor textarea{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:7px 9px;width:100%;box-sizing:border-box}
 .dsn-editor input:focus-visible,.dsn-editor textarea:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
@@ -250,12 +267,14 @@ window.__ModuleLoader__.load({
       'list.new': '新建便签',
       'list.captureSession': '收藏整段对话',
       'list.refresh': '刷新',
+      'list.closeFloats': '关闭全部浮窗',
       'list.count': '便签数量',
       'row.global': '全局',
       'row.session': '工作区',
       'row.favorite': '收藏',
       'row.unfavorite': '取消收藏',
       'row.insert': '插入会话',
+      'row.float': '浮窗打开',
       'row.makeGlobal': '设为全局',
       'row.makeSession': '设为工作区',
       'trash.open': '回收站',
@@ -305,6 +324,11 @@ window.__ModuleLoader__.load({
       'status.trashedArchived': '已移入回收站 {count} 条便签',
       'status.trashFailed': '已移入回收站 {trashed} 条，{failed} 条失败',
       'status.purgeFailed': '已永久清空 {removed} 条，{failed} 条失败',
+      'status.floatsClosed': '已关闭 {count} 个浮窗',
+      'status.noFloats': '没有打开的浮窗',
+      'viewer.openFailed': '浮窗打开失败，请重试',
+      'viewer.unsupported': '当前 DSH 版本不支持浮窗',
+      'viewer.readOnly': '只读',
       'capture.message': '收藏这条回复为便签',
       'capture.selection': '存为便签',
       'capture.needSession': '请先打开一个会话',
@@ -362,12 +386,14 @@ window.__ModuleLoader__.load({
       'list.new': 'New note',
       'list.captureSession': 'Save whole chat',
       'list.refresh': 'Refresh',
+      'list.closeFloats': 'Close all floating notes',
       'list.count': 'Number of notes',
       'row.global': 'Global',
       'row.session': 'Workspace',
       'row.favorite': 'Favorite',
       'row.unfavorite': 'Unfavorite',
       'row.insert': 'Insert into chat',
+      'row.float': 'Open in floating window',
       'row.makeGlobal': 'Make global',
       'row.makeSession': 'Move to workspace',
       'trash.open': 'Recycle bin',
@@ -417,6 +443,11 @@ window.__ModuleLoader__.load({
       'status.trashedArchived': 'Moved {count} notes to the recycle bin',
       'status.trashFailed': 'Moved {trashed} notes to the bin, {failed} failed',
       'status.purgeFailed': 'Deleted {removed} notes, {failed} failed',
+      'status.floatsClosed': 'Closed {count} floating note(s)',
+      'status.noFloats': 'No floating notes are open',
+      'viewer.openFailed': 'Could not open the floating window',
+      'viewer.unsupported': 'Floating windows are not available in this DSH version',
+      'viewer.readOnly': 'Read-only',
       'capture.message': 'Save this reply as a note',
       'capture.selection': 'Pin note',
       'capture.needSession': 'Open a chat first',
@@ -1093,6 +1124,97 @@ window.__ModuleLoader__.load({
       return sameDay ? clock : `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${clock}`
     }
 
+    // ── note tabs ───────────────────────────────────────────────────────────
+    //
+    // Each note can open as a resource tab: its address is the content identity,
+    // so two notes are two tabs and reopening a note focuses the tab it already
+    // has. DSH's Sidebar floats such a tab into a native in-app panel.
+
+    /** Content address for one note; the tab's identity across restores. */
+    function noteAddressOf(id) {
+      return `${NOTE_ADDRESS_PREFIX}${encodeURIComponent(String(id ?? ''))}`
+    }
+
+    /** Note id encoded in a tab's content address, or null for any other address. */
+    function noteIdOfAddress(address) {
+      if (typeof address !== 'string' || !address.startsWith(NOTE_ADDRESS_PREFIX)) return null
+      const raw = address.slice(NOTE_ADDRESS_PREFIX.length)
+      if (raw.length === 0) return null
+      let id
+      try {
+        id = decodeURIComponent(raw)
+      } catch {
+        return null
+      }
+      return NOTE_ID_PATTERN.test(id) ? id : null
+    }
+
+    /** Whether this DSH build exposes the Sidebar methods a float needs. */
+    function floatingSupported(ctx) {
+      const sidebar = ctx.get('sidebarRight')
+      return (
+        typeof sidebar?.openResource === 'function' &&
+        typeof sidebar?.float === 'function' &&
+        typeof sidebar?.close === 'function'
+      )
+    }
+
+    /**
+     * Tab ids of our note viewers that currently live in a floating panel. The
+     * dockkit markup is the only enumeration DSH exposes; viewers in docked tabs
+     * are left alone deliberately, so closing floats never closes the reader tab.
+     */
+    function floatingNoteTabIds(sessionId = null) {
+      if (typeof document === 'undefined') return []
+      const ids = new Set()
+      for (const view of document.querySelectorAll('[data-dsn-note-view]')) {
+        if (view.closest('[data-dockkit-float], [data-dockkit-host="float"]') === null) continue
+        const owner = view.closest('[data-sidebar-right-session]')
+        if (
+          owner !== null &&
+          sessionId !== null &&
+          sessionId !== undefined &&
+          owner.getAttribute('data-sidebar-right-session') !== String(sessionId)
+        ) {
+          continue
+        }
+        // The product-owned tab wrapper is the stable identity; the dockkit
+        // content attribute is the fallback for a layout that does not draw it.
+        const tabHost = view.closest('[data-sidebar-right-tab]')
+        const dockHost = view.closest('[data-dockkit-content]')
+        const tabId =
+          (tabHost === null ? null : tabHost.getAttribute('data-sidebar-right-tab')) ??
+          (dockHost === null ? null : dockHost.getAttribute('data-dockkit-content'))
+        if (tabId !== null && tabId.length > 0) ids.add(tabId)
+      }
+      return [...ids]
+    }
+
+    /** Close every floating note tab of the current session; returns the count. */
+    function closeAllNoteFloats(ctx, sessionId = null) {
+      let closed = 0
+      for (const tabId of floatingNoteTabIds(sessionId)) {
+        try {
+          ctx.get('sidebarRight')?.close(tabId)
+          closed += 1
+        } catch (error) {
+          console.error('[sticky-notes] close floating note failed:', error)
+        }
+      }
+      return closed
+    }
+
+    /**
+     * Open one note in its own tab. `float: true` asks the new tab's viewer to
+     * float itself after mount; reopening the same note only focuses its tab.
+     */
+    function openNoteTab(ctx, id, float = true) {
+      ctx.get('sidebarRight')?.openResource(noteAddressOf(id), {
+        kind: NOTE_VIEW_KIND,
+        params: float ? { float: true } : undefined,
+      })
+    }
+
     /**
      * Turn a failed Result into one localized message. The Host reports a
      * stable `code`, so the browser owns the wording; its own message is only
@@ -1525,6 +1647,10 @@ window.__ModuleLoader__.load({
       icon(['M12 3.6l2.55 5.17 5.7.83-4.13 4.03.98 5.68L12 16.62l-5.1 2.69.98-5.68L3.75 9.6l5.7-.83L12 3.6Z'], props?.size ?? 16, props?.filled === true)
     const IconUndo = (props) => icon(['M9 14 4 9l5-5', 'M4 9h10a6 6 0 0 1 0 12h-1'], props?.size ?? 16)
     const IconArchive = (props) => icon(['M4 5h16v4H4z', 'M5.5 9v10h13V9', 'M9.5 13h5'], props?.size ?? 16)
+    /** A note leaving the Sidebar into its own floating panel. */
+    const IconFloat = (props) => icon(['M14 4h6v6', 'M20 4l-8 8', 'M17.5 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5.5'], props?.size ?? 16)
+    /** Stacked panels with a cross: close every floating note at once. */
+    const IconCloseFloats = (props) => icon(['M4 8h11v10H4z', 'M8 8V5h12v11h-4', 'M6.5 11.5l4 4', 'M10.5 11.5l-4 4'], props?.size ?? 16)
 
     // ── list ───────────────────────────────────────────────────────────────
 
@@ -1533,7 +1659,7 @@ window.__ModuleLoader__.load({
      * actions (favorite / insert / visibility / delete), so the list never
      * needs the detail view to do the common operations.
      */
-    function NoteRow({ note, t, busy, confirming, chip = true, onOpen, onInsert, onFavorite, onScope, onDelete }) {
+    function NoteRow({ note, t, busy, confirming, chip = true, showFloat = true, onOpen, onInsert, onFloat, onFavorite, onScope, onDelete }) {
       const favoriteLabel = note.favorite ? t('row.unfavorite') : t('row.favorite')
       const scopeLabel = note.scope === 'global' ? t('row.makeSession') : t('row.makeGlobal')
       const deleteLabel = confirming ? t('detail.deleteAgain') : t('detail.delete')
@@ -1583,6 +1709,20 @@ window.__ModuleLoader__.load({
             },
             h(IconStar, { size: 18, filled: note.favorite }),
           ),
+          showFloat
+            ? h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'dsn-iconbtn',
+                  title: t('row.float'),
+                  'aria-label': t('row.float'),
+                  disabled: busy,
+                  onClick: () => onFloat(note),
+                },
+                h(IconFloat, { size: 18 }),
+              )
+            : null,
           h(
             'button',
             {
@@ -1853,6 +1993,7 @@ window.__ModuleLoader__.load({
       const [confirmArchive, setConfirmArchive] = useState(null)
       const archivedSessionIds = useArchivedSessions(ctx)
       const catalog = useSessionsCatalog(ctx)
+      const canFloat = floatingSupported(ctx)
 
       useEffect(() => {
         void store.load(sessionId ?? null)
@@ -1951,6 +2092,31 @@ window.__ModuleLoader__.load({
         else if (result.code === 'no-session') notify(t('insert.noSession'), true)
         else if (result.code === 'no-composer') notify(t('insert.noComposer'), true)
         else notify(t('insert.failed'), true)
+      }
+
+      /** Open one note in its own tab and let that tab float itself. */
+      const openFloat = (note) => {
+        if (!canFloat) {
+          notify(t('viewer.unsupported'), true)
+          return
+        }
+        try {
+          openNoteTab(ctx, note.id, true)
+        } catch (error) {
+          console.error('[sticky-notes] open floating note failed:', error)
+          notify(t('viewer.openFailed'), true)
+        }
+      }
+
+      /** Close every floating note of this Session, even one dragged off screen. */
+      const closeFloats = () => {
+        if (!canFloat) {
+          notify(t('viewer.unsupported'), true)
+          return
+        }
+        const closed = closeAllNoteFloats(ctx, sessionId)
+        if (closed > 0) notify(t('status.floatsClosed', { count: closed }))
+        else notify(t('status.noFloats'))
       }
 
       const toggleFavorite = async (note) => {
@@ -2057,6 +2223,8 @@ window.__ModuleLoader__.load({
           ctx,
           t,
           onBack: () => setOpenId(null),
+          canFloat,
+          onFloat: (note) => openFloat(note),
           onEdit: (note) => {
             setOpenId(null)
             setEditor({ mode: 'edit', note: { id: note.id, title: note.title, body: note.body, scope: note.scope } })
@@ -2076,7 +2244,9 @@ window.__ModuleLoader__.load({
           busy: busyId === note.id,
           confirming: confirmId === note.id,
           chip: filter !== 'workspace',
+          showFloat: canFloat,
           onOpen: open,
+          onFloat: (row) => openFloat(row),
           onInsert: (row) => void insertNote(row),
           onFavorite: (row) => void toggleFavorite(row),
           onScope: (row) => void toggleScope(row),
@@ -2115,6 +2285,13 @@ window.__ModuleLoader__.load({
             { type: 'button', className: 'dsn-iconbtn', title: t('list.new'), 'aria-label': t('list.new'), onClick: startNew },
             h(IconPlus, { size: 16 }),
           ),
+          canFloat
+            ? h(
+                'button',
+                { type: 'button', className: 'dsn-iconbtn', title: t('list.closeFloats'), 'aria-label': t('list.closeFloats'), onClick: closeFloats },
+                h(IconCloseFloats, { size: 16 }),
+              )
+            : null,
           h(
             'button',
             { type: 'button', className: 'dsn-iconbtn', title: t('list.refresh'), 'aria-label': t('list.refresh'), onClick: () => void store.load(sessionId, true) },
@@ -2250,7 +2427,7 @@ window.__ModuleLoader__.load({
     }
 
     /** One note opened in place: rendered Markdown plus the actions on it. */
-    function NoteDetail({ id, sessionId, store, ctx, t, onBack, onEdit }) {
+    function NoteDetail({ id, sessionId, store, ctx, t, canFloat = false, onBack, onFloat, onEdit }) {
       const [note, setNote] = useState(null)
       const [error, setError] = useState(null)
       const [status, setStatus] = useState(null)
@@ -2390,6 +2567,13 @@ window.__ModuleLoader__.load({
             },
             h(IconStar, { size: 19, filled: note.favorite }),
           ),
+          canFloat
+            ? h(
+                'button',
+                { type: 'button', className: 'dsn-iconbtn', onClick: () => onFloat(note), title: t('row.float'), 'aria-label': t('row.float') },
+                h(IconFloat, { size: 19 }),
+              )
+            : null,
           h('button', { type: 'button', className: 'dsn-iconbtn', onClick: () => onEdit(note), title: t('detail.edit'), 'aria-label': t('detail.edit') }, h(IconEdit, { size: 19 })),
         ),
         h(
@@ -2434,6 +2618,203 @@ window.__ModuleLoader__.load({
           ),
           h('div', { className: 'dsn-md', dangerouslySetInnerHTML: { __html: renderMarkdown(note.body) } }),
         ),
+      )
+    }
+
+    /** The live chip / float-header title of one note tab. */
+    function NoteTabTitle({ useTabInfo, store }) {
+      const info = useTabInfo()
+      const tab = info.tab
+      const view = useStore(store)
+      const id = noteIdOfAddress(tab.contentId)
+      const note = id === null ? null : view.items.find((item) => item.id === id) ?? null
+      return h('span', null, note?.title || tab.title || '')
+    }
+
+    /**
+     * One note in its own tab: the same rendered Markdown as the detail page,
+     * but read-only and without the manager chrome. A tab opened with
+     * float: true asks the Sidebar to float it after mount, so the click on a
+     * note row becomes a native in-app panel. When the tab is already floating
+     * that call is a no-op, which keeps reopening a note from stacking panels.
+     */
+    function NoteViewer(props) {
+      const { store, ctx, t, sessionId } = props
+      const info = props.useTabInfo()
+      const tab = info.tab
+      const view = useStore(store)
+      const [note, setNote] = useState(null)
+      const [error, setError] = useState(null)
+      const [status, setStatus] = useState(null)
+      const [reloadKey, setReloadKey] = useState(0)
+      const bodyRef = useRef(null)
+      const floatedFor = useRef(null)
+      const targetSessionId = sessionId ?? currentSessionId(ctx)
+      const id = noteIdOfAddress(tab.contentId)
+
+      useEffect(() => {
+        if (id === null) {
+          setNote(null)
+          setError(t('error.notFound'))
+          return undefined
+        }
+        let alive = true
+        setError(null)
+        void store.read(id, targetSessionId).then((result) => {
+          if (!alive) return
+          if (!result.ok) {
+            setNote(null)
+            setError(result.message ?? t('error.notFound'))
+            return
+          }
+          setNote(result.value.note)
+        })
+        return () => {
+          alive = false
+        }
+      }, [id, targetSessionId, view.dirty, reloadKey])
+
+      useEffect(() => {
+        const navigation = tab.navigation
+        if (navigation?.params?.float !== true) return undefined
+        const key = tab.id + ':' + String(navigation.revision ?? 0)
+        if (floatedFor.current === key) return undefined
+        floatedFor.current = key
+        const timer = setTimeout(() => {
+          try {
+            ctx.get('sidebarRight')?.float(tab.id)
+          } catch (cause) {
+            console.error('[sticky-notes] float note tab failed:', cause)
+          }
+        }, 0)
+        return () => clearTimeout(timer)
+      }, [tab.id, tab.navigation?.revision])
+
+      useEffect(() => {
+        if (status === null) return undefined
+        const timer = setTimeout(() => setStatus(null), 2200)
+        return () => clearTimeout(timer)
+      }, [status])
+
+      const notify = (text, isError = false) => setStatus({ text, error: isError })
+
+      const insert = (text) => {
+        const result = insertIntoComposer(ctx, targetSessionId, text)
+        if (result.ok) notify(t('status.inserted'))
+        else if (result.code === 'no-session') notify(t('insert.noSession'), true)
+        else if (result.code === 'no-composer') notify(t('insert.noComposer'), true)
+        else notify(t('insert.failed'), true)
+      }
+
+      const insertSelection = () => {
+        let text = ''
+        try {
+          const selection = window.getSelection()
+          const range = selection?.rangeCount ? selection.getRangeAt(0) : null
+          if (range !== null && bodyRef.current !== null && bodyRef.current.contains(range.commonAncestorContainer)) {
+            text = selection.toString()
+          }
+        } catch {
+          text = ''
+        }
+        if (text.trim().length === 0) {
+          notify(t('capture.needSelection'), true)
+          return
+        }
+        insert(text)
+      }
+
+      const copy = async () => {
+        if (note === null) return
+        try {
+          await navigator.clipboard.writeText(note.body)
+          notify(t('status.copied'))
+        } catch {
+          notify(t('error.generic'), true)
+        }
+      }
+
+      const bar = h(
+        'div',
+        { className: 'dsn-viewer-bar' },
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'dsn-btn',
+            'data-primary': true,
+            disabled: note === null,
+            title: t('detail.insert'),
+            onClick: () => {
+              if (note !== null) insert('## ' + note.title + '\n\n' + note.body)
+            },
+          },
+          h(IconInsert, { size: 14 }),
+          t('detail.insert'),
+        ),
+        h(
+          'button',
+          { type: 'button', className: 'dsn-btn', disabled: note === null, title: t('detail.insertSelection'), onClick: insertSelection },
+          t('detail.insertSelection'),
+        ),
+        h(
+          'button',
+          { type: 'button', className: 'dsn-btn', disabled: note === null, title: t('detail.copy'), onClick: () => void copy() },
+          h(IconCopy, { size: 14 }),
+          t('detail.copy'),
+        ),
+        h(
+          'button',
+          {
+            type: 'button',
+            className: 'dsn-iconbtn',
+            title: t('list.refresh'),
+            'aria-label': t('list.refresh'),
+            onClick: () => setReloadKey((value) => value + 1),
+          },
+          h(IconRefresh, { size: 14 }),
+        ),
+        status === null
+          ? null
+          : h(
+              'span',
+              {
+                className: 'dsn-viewer-status',
+                role: 'status',
+                'data-success': status.error ? undefined : true,
+                'data-error': status.error || undefined,
+              },
+              status.text,
+            ),
+      )
+
+      return h(
+        'div',
+        { className: 'dsn-viewer', 'data-dsn-note-view': true, 'data-dsn-ignore-capture': true },
+        bar,
+        note === null || error !== null
+          ? h(
+              'div',
+              { className: 'dsn-viewer-empty' },
+              h(
+                'div',
+                { className: 'dsn-empty' },
+                h('span', { className: 'dsn-empty-icon' }, h(IconNote, { size: 24 })),
+                h('p', { className: 'dsn-empty-text' }, error ?? t('status.loading')),
+              ),
+            )
+          : h(
+              'div',
+              { className: 'dsn-viewer-body', ref: bodyRef },
+              h(
+                'div',
+                { className: 'dsn-detail-meta' },
+                h('span', { className: 'dsn-chip' }, t('viewer.readOnly')),
+                ' ' + (note.scope === 'global' ? t('row.global') : t('row.session')) + ' · ' + formatTime(note.updatedAt) + ' · ',
+                h('span', { title: note.path }, note.path),
+              ),
+              h('div', { className: 'dsn-md', dangerouslySetInnerHTML: { __html: renderMarkdown(note.body) } }),
+            ),
       )
     }
 
@@ -2744,6 +3125,42 @@ window.__ModuleLoader__.load({
           }),
         )
 
+        seat('sticky-notes: note tab type', () =>
+          ctx.sidebarRightTabs.register({
+            id: NOTE_VIEW_ID,
+            kind: NOTE_VIEW_KIND,
+            patterns: ['dsh-resource://sticky-note/[\\s\\S]+'],
+            priority: 'fallback',
+            canOpen: (address) => noteIdOfAddress(address) !== null,
+            title: (address) => {
+              const id = noteIdOfAddress(address)
+              const note = id === null ? null : store.getSnapshot().items.find((item) => item.id === id) ?? null
+              return note?.title || t('default.title')
+            },
+          }),
+        )
+
+        // A note opened outside the manager page renders here. The resource
+        // address carries the note id, so a restored tab finds its note again
+        // without any navigation parameters (those are not layout state).
+        seat('sticky-notes: note tab', () =>
+          ctx.slots.inject('sidebar.right.pane.tab', () =>
+            ctx.slots.register(
+              { name: 'sidebar.right.pane.tab', key: NOTE_VIEW_ID, locale: NS, inject: () => ({}) },
+              (props) => h(NoteViewer, { ...props, store, ctx, t: props.t ?? t }),
+            ),
+          ),
+        )
+
+        seat('sticky-notes: note tab title', () =>
+          ctx.slots.inject('sidebar.right.pane.tab.title', () =>
+            ctx.slots.register(
+              { name: 'sidebar.right.pane.tab.title', key: NOTE_VIEW_ID, locale: NS, inject: () => ({}) },
+              (props) => h(NoteTabTitle, { ...props, store }),
+            ),
+          ),
+        )
+
         seat('sticky-notes: pane', () =>
           ctx.slots.inject('sidebar.right.pane.tab', () =>
             ctx.slots.register(
@@ -2799,6 +3216,11 @@ window.__ModuleLoader__.load({
         groupWorkspaceNotes,
         archivedNoteCount,
         sessionDisplayTitle,
+        noteAddressOf,
+        noteIdOfAddress,
+        floatingNoteTabIds,
+        openNoteTab,
+        closeAllNoteFloats,
       },
     }
   },

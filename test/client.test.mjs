@@ -10,12 +10,13 @@ import vm from 'node:vm'
 const here = dirname(fileURLToPath(import.meta.url))
 
 /** Load the module in a VM and return the contribution it registers. */
-async function loadClient() {
+async function loadClient(globals = {}) {
   const source = await readFile(join(here, '..', 'client.js'), 'utf8')
   let captured = null
   const sandbox = {
     window: { __ModuleLoader__: { load: (definition) => { captured = definition } } },
     console,
+    ...globals,
   }
   vm.runInNewContext(source, sandbox, { filename: 'client.js' })
   assert.ok(captured !== null, 'client.js did not call window.__ModuleLoader__.load')
@@ -76,7 +77,136 @@ test('client contribution exposes its seats and debug internals', async () => {
   assert.equal(typeof plugin.__internals.domToMarkdown, 'function')
   assert.equal(typeof plugin.__internals.titleOfText, 'function')
   assert.equal(typeof plugin.__internals.insertIntoComposer, 'function')
+  assert.equal(typeof plugin.__internals.noteAddressOf, 'function')
+  assert.equal(typeof plugin.__internals.noteIdOfAddress, 'function')
+  assert.equal(typeof plugin.__internals.floatingNoteTabIds, 'function')
 })
+
+test('note tab addresses round-trip and reject foreign or malformed addresses', async () => {
+  const { plugin } = await loadClient()
+  const { noteAddressOf, noteIdOfAddress, floatingNoteTabIds } = plugin.__internals
+
+  assert.equal(noteAddressOf('7f3a9c1d2e4b'), 'dsh-resource://sticky-note/7f3a9c1d2e4b')
+  assert.equal(noteIdOfAddress(noteAddressOf('7f3a9c1d2e4b')), '7f3a9c1d2e4b')
+  assert.equal(noteIdOfAddress('dsh-resource://sticky-note/'), null)
+  assert.equal(noteIdOfAddress('dsh-resource://sticky-note/a/b'), null)
+  assert.equal(noteIdOfAddress('dsh-resource://sticky-note/a%20b'), null)
+  assert.equal(noteIdOfAddress('dsh-resource://file/a.md'), null)
+  assert.equal(noteIdOfAddress('sidebar://sticky-notes'), null)
+  assert.equal(noteIdOfAddress(null), null)
+
+  // No DOM in this VM: the float enumeration must degrade to an empty list.
+  assert.deepEqual(Array.from(floatingNoteTabIds()), [])
+})
+
+test('floating note enumeration only returns note viewers inside float hosts', async () => {
+  const element = (attributes, floating) => ({
+    closest: (selector) => {
+      if (selector === '[data-dockkit-float], [data-dockkit-host="float"]') return floating ? {} : null
+      if (selector === '[data-sidebar-right-session]') return { getAttribute: () => attributes.session }
+      if (selector === '[data-dockkit-content]') return { getAttribute: () => attributes.tab }
+      return null
+    },
+  })
+  const views = [
+    element({ session: 's1', tab: 'tab-float' }, true),
+    element({ session: 's1', tab: 'tab-docked' }, false),
+    element({ session: 's2', tab: 'tab-other-session' }, true),
+  ]
+  const documentStub = { querySelectorAll: (selector) => (selector === '[data-dsn-note-view]' ? views : []) }
+  const { plugin } = await loadClient({ document: documentStub })
+
+  assert.deepEqual(Array.from(plugin.__internals.floatingNoteTabIds('s1')), ['tab-float'])
+  assert.deepEqual(Array.from(plugin.__internals.floatingNoteTabIds()), ['tab-float', 'tab-other-session'])
+  assert.deepEqual(Array.from(plugin.__internals.floatingNoteTabIds('s3')), [])
+})
+
+test('openNoteTab targets the note address and asks for a float', async () => {
+  const { plugin } = await loadClient()
+  const calls = []
+  const ctx = {
+    get: (name) =>
+      name === 'sidebarRight'
+        ? { openResource: (address, options) => calls.push({ address, options }) }
+        : undefined,
+  }
+  plugin.__internals.openNoteTab(ctx, 'abc123', true)
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].address, 'dsh-resource://sticky-note/abc123')
+  assert.equal(calls[0].options.kind, 'sticky-note')
+  assert.equal(calls[0].options.params.float, true)
+
+  plugin.__internals.openNoteTab(ctx, 'abc123', false)
+  assert.equal(calls[1].options.params, undefined)
+})
+
+test('closeAllNoteFloats closes only the floating note tabs of the given session', async () => {
+  const element = (attributes, floating) => ({
+    closest: (selector) => {
+      if (selector === '[data-dockkit-float], [data-dockkit-host="float"]') return floating ? {} : null
+      if (selector === '[data-sidebar-right-session]') return { getAttribute: () => attributes.session }
+      if (selector === '[data-dockkit-content]') return { getAttribute: () => attributes.tab }
+      return null
+    },
+  })
+  const views = [
+    element({ session: 's1', tab: 'tab-float' }, true),
+    element({ session: 's1', tab: 'tab-docked' }, false),
+    element({ session: 's2', tab: 'tab-other-session' }, true),
+  ]
+  const { plugin } = await loadClient({ document: { querySelectorAll: () => views } })
+  const closed = []
+  const ctx = {
+    get: (name) => (name === 'sidebarRight' ? { close: (tabId) => closed.push(tabId) } : undefined),
+  }
+
+  assert.equal(plugin.__internals.closeAllNoteFloats(ctx, 's1'), 1)
+  assert.deepEqual(closed, ['tab-float'])
+  assert.equal(plugin.__internals.closeAllNoteFloats(ctx, null), 2)
+  assert.deepEqual(closed, ['tab-float', 'tab-float', 'tab-other-session'])
+})
+
+
+
+test('apply registers the note resource tab, its body, and its live title', async () => {
+  const styles = []
+  const documentStub = {
+    createElement: () => ({ dataset: {}, textContent: '', remove() {} }),
+    head: { appendChild: (tag) => styles.push(tag) },
+  }
+  const { plugin } = await loadClient({ document: documentStub })
+  const definitions = []
+  const bodies = []
+  const titles = []
+  const ctx = {
+    effect: (register) => register(),
+    locale: { register: () => {}, bind: () => (key) => key },
+    slots: {
+      inject: (_name, factory) => factory(),
+      register: (config, component) => {
+        if (config.name === 'sidebar.right.pane.tab') bodies.push({ config, component })
+        else if (config.name === 'sidebar.right.pane.tab.title') titles.push({ config, component })
+        return () => {}
+      },
+    },
+    remote: { $mount: async () => {} },
+    get: (name) => (name === 'remote.stickyNotes' ? {} : undefined),
+    sidebarRightTabs: { register: (definition) => { definitions.push(definition); return () => {} } },
+  }
+
+  await plugin.apply(ctx)
+
+  const noteType = definitions.find((definition) => definition.kind === 'sticky-note')
+  assert.ok(noteType, 'note tab type was not registered')
+  assert.equal(noteType.id, 'dsh-sticky-notes/note')
+  assert.equal(noteType.canOpen('dsh-resource://sticky-note/abc123'), true)
+  assert.equal(noteType.canOpen('dsh-resource://file/abc123'), false)
+  assert.equal(noteType.title('dsh-resource://sticky-note/abc123'), 'default.title')
+  assert.ok(bodies.some((entry) => entry.config.key === 'dsh-sticky-notes/note'))
+  assert.ok(titles.some((entry) => entry.config.key === 'dsh-sticky-notes/note'))
+  assert.equal(styles.length, 1)
+})
+
 
 test('renderMarkdown covers the shapes the panel relies on', async () => {
   const { plugin } = await loadClient()

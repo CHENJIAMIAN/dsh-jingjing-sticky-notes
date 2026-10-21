@@ -14,7 +14,8 @@
 
 Sticky Notes turns important replies, arbitrary text selections, or an entire conversation in
 DeepSeek Harness into local Markdown notes. Notes live in the right sidebar, where you can reopen,
-compare, rename, and insert them back into the composer — whole or by selection.
+compare, rename, and insert them back into the composer — whole or by selection. Each note can also
+open as a draggable, resizable in-app floating window, so several notes can be compared at once.
 
 When a long conversation makes you scroll back for that table, checklist, or conclusion again and
 again, this panel is your scratch pad.
@@ -37,10 +38,10 @@ again, this panel is your scratch pad.
   Search and a note count are included;
 - In the workspace view, groups whose source chat is archived sink to the bottom and carry an
   "Archived" chip; a banner above the list moves those notes to the recycle bin in one action;
-- Each note is a capsule card: title + one-line snippet + time on the left, a 2×2 action grid on the
+- Each note is a capsule card: title + one-line snippet + time on the left, a 3×2 action grid on the
   right, separated by a single dashed vertical rule;
-- **Inline actions**: favorite, insert into chat, toggle visibility, move to the recycle bin (two
-  clicks, resets after 3 seconds) — no need to open the detail view;
+- **Inline actions**: favorite, open in a floating window, insert into chat, toggle visibility, move
+  to the recycle bin (two clicks, resets after 3 seconds) — no need to open the detail view;
 - **Favorites first**: favorited notes are pinned to the top inside their group; groups follow by
   the newest note, with archived groups last;
 - A "Recycle bin" entry sits at the end of every list.
@@ -48,7 +49,21 @@ again, this panel is your scratch pad.
 ### Detail view
 - The action bar sits at the top: insert whole note, insert selection, insert as file, copy,
   make global / move to workspace, move to the recycle bin;
-- Edit title and body with a Markdown preview, and switch visibility.
+- Edit title and body with a Markdown preview, and switch visibility;
+- The "Open in floating window" button in the title row turns this note into a floating window.
+
+### Floating notes (new)
+- The "Open in floating window" action on a card or in the detail view opens the note as its own tab
+  and floats it above the conversation; dragging a note tab out of the right sidebar floats it too;
+- Drag the title bar to move it, drag the bottom-right corner to resize, use the dock button to put
+  it back into the right sidebar, or the close button to remove it. DSH saves the rectangle per
+  session and restores it after a reload/restart;
+- Several note windows can be open at once for comparison. Floating notes are **read-only**: copy,
+  insert whole note, and insert selection still work, but edit in the detail view;
+- The notes toolbar has a "Close all floating notes" button that closes every note float of the
+  current session at once — the recovery path when a window was dragged off screen;
+- Floats belong to the current session; they hide when you switch chats or open a global page such as
+  Settings, and come back with the chat.
 
 ### Recycle bin
 - Deleting a note moves it into the recycle bin first: workspace notes go to that workspace's
@@ -75,12 +90,13 @@ again, this panel is your scratch pad.
 ## Preview
 
 ```
-┌─────────────────────────┊────────────┐
-│ Note title               ┊  ☆     ↓   │
-│ One-line snippet         ┊            │
-│ [Workspace] 14:20       ┊  ⊕     🗑   │
-└─────────────────────────┴────────────┘
-   ⊙ favorite (pinned inside its group)
+┌─────────────────────────┊──────────────┐
+│ Note title               ┊  ☆    ⧉    ↓   │
+│ One-line snippet         ┊  ⊕    🗑        │
+│ [Workspace] 14:20       ┊                │
+└─────────────────────────┴──────────────┘
+   ☆ favorite (pinned inside its group)
+   ⧉ open in a floating window (move / resize)
    ↓ insert into the composer
    ⊕ switch global / workspace
    🗑 move to the recycle bin (two-step confirmation)
@@ -116,7 +132,11 @@ reload.
 3. Act directly in the list, or open a card to read the full Markdown; the workspace view groups
    notes by source chat, and archived chats carry an "Archived" chip;
 4. Insert it back with "Insert whole note", "Insert selection", or "Insert as file";
-5. Deleted notes wait in the recycle bin at the end of the list — restore them one by one, or empty
+5. To see several notes at once, click "Open in floating window" on a card; floats can be moved,
+   resized, and docked back into the sidebar;
+6. If a floating window was moved out of sight, return to the notes panel and click "Close all
+   floating notes" in the toolbar;
+7. Deleted notes wait in the recycle bin at the end of the list — restore them one by one, or empty
    the bin after the warning.
 
 ## Storage
@@ -214,7 +234,7 @@ here edits the running plugin.
 | File | Purpose |
 |---|---|
 | `index.js` | Host half: note service (13 Typert Remote endpoints), project directory resolution, session log capture, recycle bin and archived cleanup |
-| `client.js` | Client half: sidebar panel (workspace groups / recycle bin), capture affordances, Markdown renderer and selection rebuild, insert-back, styles and copy |
+| `client.js` | Client half: sidebar panel (workspace groups / recycle bin), floating note tabs, capture affordances, Markdown renderer and selection rebuild, insert-back, styles and copy |
 | `lib/store.js` | Markdown store: frontmatter parse/serialize, ordering, store and recycle bin I/O |
 | `lib/schemas.js` | Hand-written dependency-free request validators (no zod: a missing module there would take the Host down) |
 | `lib/typert.host.js` | Host-side Typert manifest |
@@ -239,8 +259,16 @@ here edits the running plugin.
 
 ## Known limits
 
-- The notes panel expands in place inside the right sidebar; it is not a standalone floating window.
-  The sidebar's own float/split buttons can drag the whole tab out;
+- A note float is an in-app DSH floating pane, not an operating-system window: it cannot leave the
+  DSH window, appear in Alt-Tab, or move to another display;
+- Floats are saved per session: they hide when you switch chats or open a global page such as
+  Settings, and return with the chat;
+- Floating notes are read-only and never write note files; edits made in the list/detail view are
+  re-read and shown automatically, and the refresh button in the float's toolbar re-reads manually;
+- "Close all floating notes" closes the current session's note floats only; it never closes the notes
+  manager tab itself;
+- Floats come from DSH's right-sidebar docking layout (dockkit). When the host does not expose
+  `openResource` / `float`, the float buttons hide and the list/detail views keep working;
 - **Workspace view** shows notes from every chat in the same workspace — a visibility change from
   older versions, where chats stayed private. Use **Chat** when you only want the current chat;
 - The archived mark and the workspace-view "Move to bin" bulk action only apply to the workspace
