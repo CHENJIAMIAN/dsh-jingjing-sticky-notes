@@ -11,7 +11,7 @@
   - 每条助手回复下方的便签图标：收藏整条回复（服务端从会话日志取原文，不依赖 DOM 截取，Markdown 原样保留）。
   - 选中对话文字后浮出的「存为便签」：只收藏选中的那一段。
   - 便签页工具栏的「收藏整段对话」：把当前会话的用户/助手文字整理成一篇摘录便签。
-- **本地 Markdown 文件**：一条便签就是一个 `.md` 文件（带 frontmatter），可以直接用编辑器改、用 Git 管。
+- **本地 Markdown 文件**：一条便签就是一个 `.md` 文件（带 frontmatter），可以直接用编辑器改、用 Git 管。会话便签跟着项目目录走，全局便签集中存放。
 - **Markdown 渲染**：标题、列表、任务勾选、表格、代码块、引用、链接、粗斜体。内容全部先转义再渲染，链接只允许 `http(s)://`、`mailto:`、`#`、`/` 开头。
 - **插回会话**
   - 「插入全文」：把 `## 标题` + 正文追加到当前输入框。
@@ -36,16 +36,25 @@ dsh plugin --profile desktop add link:D:/Project/self_project/dsh-sticky-notes
 
 - Host 半（`index.js`、`lib/*.js`、`cordis.patch.yml`、`package.json`）改动后要**完全重启客户端**才会加载。
 - Client 半（`client.js`）改动后刷新页面即可；窗口内刷新不触发插件重载时，重开会话页。
+- 存储层自测：`node --test`（或 `pnpm test`），只依赖 `node:test`，不需要安装依赖。
 
 ## 存储
 
-默认目录 `~/.dsh/sticky-notes/notes/`（即 `$DSH_HOME/sticky-notes/notes/`）。
+便签分两处存放：
+
+| 类型 | 位置 | 说明 |
+|---|---|---|
+| 会话便签（`scope: session`） | `<会话工作目录>/.dsh-notes/` | 跟着项目走，可随项目备份 / 提交 |
+| 全局便签（`scope: global`） | `~/.dsh/sticky-notes/notes/` | 所有项目共享 |
+
+会话工作目录取自会话头（`SessionHeader.cwd`，即创建会话时的工作区路径）。列表 = 当前项目的会话便签 + 全局便签；「设为全局 / 设为会话」会把文件在两个目录之间移动。
 
 ```
-sticky-notes/
-├── notes/
-│   ├── 2026-10-21-问题列表-7f3a9c1d2e4b.md
-│   └── ...
+D:\Project\某个项目\.dsh-notes\              # 项目便签（目录名可配置）
+└── 2026-10-21-问题列表-7f3a9c1d2e4b.md
+
+C:\Users\<你>\.dsh\sticky-notes\notes\        # 全局便签
+└── 2026-10-21-通用约定-9a1c2b3d4e5f.md
 ```
 
 每个文件：
@@ -67,23 +76,27 @@ updatedAt: 1761000000000
 - `scope`: `session` | `global`。
 - `sessionId` 是来源会话，便于回溯；即使改为 `global` 也会保留。
 - 手改 frontmatter 后，下一次刷新列表即生效；损坏的文件会被跳过，不影响其它便签。
+- 旧版本把会话便签也存在全局目录里：这些便签照常显示（按 `sessionId` 归属），改动或切换可见性时会自动落到项目目录；也可以手动搬走。
+- 建议把 `.dsh-notes/` 加进项目自己的 `.gitignore`（想随项目提交就别加）。
 
-### 改存放位置
+### 配置
 
 在 profile 的 `cordis.patch.yml` 里覆盖这一行（patch 会整体替换 `config`，所以键要写全）：
 
 ```yaml
 - id: sticky-notes
   config:
-    directory: 'D:/Project/self_project/dsh-sticky-notes/.notes'   # 留空则用 $DSH_HOME/sticky-notes
+    directory: ''                    # 全局便签目录；留空 = $DSH_HOME/sticky-notes/notes
+    projectDirectory: '.dsh-notes'   # 会话便签目录，相对会话工作目录
     maxNotes: 2000
 ```
 
-想跟着项目走，就把 `directory` 指到项目里的目录；想全局共用，就留空。
+`projectDirectory` 只接受相对路径；写成绝对路径或含 `..` 会回落到默认的 `.dsh-notes`。
 
 ## 已知边界
 
 - 便签页在右侧栏内是就地展开，不是独立浮窗；右侧栏自身的"浮动 / 分栏"按钮可以把整个便签页拖成浮窗。
-- 列表按会话 ID 归属，不按工作区归属：同一工作区里不同会话的便签互不可见，除非设为全局。
+- 同一项目的不同会话：便签文件物理上同在一个 `.dsh-notes/` 目录，但列表按 `sessionId` 过滤，会话便签仍互不可见，除非设为全局。
+- 会话工作目录不可写（只读挂载、权限不足）时，写便签会报错；工作目录缺失或查不到会话头时，会话便签回落到全局目录，不会丢失。
 - 会话日志读取依赖宿主的 `sessionPersistence`；极新的、尚未落盘的会话可能暂时读不到回复原文，先发一条消息再收藏即可。
 - 收藏整段对话会把用户与助手的可见文字拼成一篇，跳过思考、工具调用和工具输出。

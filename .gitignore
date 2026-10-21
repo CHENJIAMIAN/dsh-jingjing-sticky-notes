@@ -1,7 +1,8 @@
 # Dependencies (the plugin is installed by link, so it normally has none)
 node_modules/
 
-# A project-local note store, when `directory` is pointed inside the repo
+# Per-project note stores written by the plugin
+.dsh-notes/
 .notes/
 
 # Local scratch and logs

@@ -5,11 +5,13 @@
 # the browser roster (served at /plugins/dsh-sticky-notes/client.js).
 #
 # A patch replaces the targeted row's whole `config`, so restate every key.
-# `directory: ''` keeps the default store under <DSH_HOME>/sticky-notes.
+# `directory: ''` keeps the global store at <DSH_HOME>/sticky-notes/notes.
+# `projectDirectory` is relative to each Session's working directory.
 
 - insert:
     - id: sticky-notes
       name: 'dsh-sticky-notes'
       config:
         directory: ''
+        projectDirectory: '.dsh-notes'
         maxNotes: 2000

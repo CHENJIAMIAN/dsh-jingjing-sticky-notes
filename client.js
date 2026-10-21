@@ -528,8 +528,12 @@ window.__ModuleLoader__.load({
             set({ status: 'error', error: error instanceof Error ? error.message : String(error) })
           }
         },
-        async read(id) {
-          const carried = await remote.read({ id })
+        /**
+         * Read one note. `sessionId` lets the Host resolve the note's project
+         * store; a global note is found in the shared store regardless.
+         */
+        async read(id, sessionId) {
+          const carried = await remote.read({ id, sessionId: sessionId ?? null })
           if (!carried.ok) return { ok: false, message: carried.error?.message ?? 'read failed' }
           return carried.value
         },
@@ -553,11 +557,11 @@ window.__ModuleLoader__.load({
             return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
           }
         },
-        async remove(id) {
+        async remove(id, sessionId) {
           try {
             // `remove` is reserved on the Remote namespace service, so the
             // endpoint is `removeNote`.
-            const carried = await remote.removeNote({ id })
+            const carried = await remote.removeNote({ id, sessionId: sessionId ?? null })
             if (!carried.ok) return { ok: false, error: { code: 'transport', message: carried.error?.message ?? 'failed' } }
             if (carried.value.ok) store.markDirty()
             return carried.value
@@ -714,7 +718,13 @@ window.__ModuleLoader__.load({
             }
             const result = editor.mode === 'new'
               ? await store.create(payload)
-              : await store.update({ id: editor.note.id, title: payload.title, body: payload.body, scope: payload.scope })
+              : await store.update({
+                  id: editor.note.id,
+                  title: payload.title,
+                  body: payload.body,
+                  scope: payload.scope,
+                  sessionId,
+                })
             setBusy(false)
             if (!result.ok) return failureText(result, t)
             setEditor(null)
@@ -814,7 +824,7 @@ window.__ModuleLoader__.load({
         let alive = true
         setNote(null)
         setError(null)
-        void store.read(id).then((result) => {
+        void store.read(id, sessionId).then((result) => {
           if (!alive) return
           if (!result.ok) {
             setError(result.message ?? t('error.notFound'))
@@ -825,7 +835,7 @@ window.__ModuleLoader__.load({
         return () => {
           alive = false
         }
-      }, [id])
+      }, [id, sessionId])
 
       useEffect(() => {
         if (status === null) return undefined
@@ -880,7 +890,7 @@ window.__ModuleLoader__.load({
       const toggleScope = async () => {
         setBusy(true)
         const scope = note.scope === 'global' ? 'session' : 'global'
-        const result = await store.update({ id: note.id, title: note.title, body: note.body, scope })
+        const result = await store.update({ id: note.id, title: note.title, body: note.body, scope, sessionId })
         setBusy(false)
         if (!result.ok) {
           setStatus(failureText(result, t))
@@ -896,7 +906,7 @@ window.__ModuleLoader__.load({
           return
         }
         setBusy(true)
-        const result = await store.remove(note.id)
+        const result = await store.remove(note.id, sessionId)
         setBusy(false)
         if (!result.ok) {
           setStatus(failureText(result, t))

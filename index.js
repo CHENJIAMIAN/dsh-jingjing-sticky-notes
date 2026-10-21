@@ -1,7 +1,8 @@
 // dsh-sticky-notes — Host half.
 //
-// A storage sidecar for the browser panel: it owns a directory of Markdown
-// files, exposes list/read/create/update/remove over Typert Remote, and can
+// A storage sidecar for the browser panel: it owns Markdown notes in two kinds
+// of stores — a global directory and one `.dsh-notes` directory per Session
+// project — exposes list/read/create/update/remove over Typert Remote, and can
 // capture text straight from the durable Session log so the client never has
 // to scrape the DOM. It never creates or resumes an Agent.
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
@@ -9,11 +10,13 @@ import { deriveEventMessage, isAppendSurfaceEvent } from '@deepseek-ai/dsh-sessi
 import {
   clampTitle,
   defaultRoot,
-  findNote,
+  findNoteIn,
   isNoteId,
   newNoteId,
-  readAllNotes,
+  projectRootFor,
+  readNotesFrom,
   removeNote,
+  sanitizeProjectDirectory,
   titleFromBody,
   toDetail,
   toSummary,
@@ -57,16 +60,43 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
   constructor(ctx, config) {
     super(ctx, 'stickyNotes')
     this.root = textOf(config?.directory, 1024).trim() || defaultRoot()
+    this.projectDirectory = sanitizeProjectDirectory(textOf(config?.projectDirectory, 256))
     const configuredMax = Number(config?.maxNotes)
     this.maxNotes = Number.isSafeInteger(configuredMax) && configuredMax > 0 ? configuredMax : 2000
     this.operationTail = Promise.resolve()
+    /** Session id → project store root; only successful resolutions are cached. */
+    this.projectRoots = new Map()
   }
 
-  /** Every note visible to one Session: its own notes plus every global note. */
+  /** Note store root of the project that owns one Session, or null when unknown. */
+  async projectRootOf(sessionId) {
+    const id = textOf(sessionId, 160)
+    if (id.length === 0) return null
+    const cached = this.projectRoots.get(id)
+    if (cached !== undefined) return cached
+    let root = null
+    try {
+      // `stat` returns the immutable Session header without reading the log.
+      const snapshot = await this.ctx.sessionPersistence.stat(id)
+      root = projectRootFor(snapshot?.header?.cwd, this.projectDirectory)
+    } catch {
+      root = null
+    }
+    if (root !== null) this.projectRoots.set(id, root)
+    return root
+  }
+
+  /** Stores one Session can see: its project first, then the global store. */
+  async rootsFor(sessionId) {
+    const project = await this.projectRootOf(sessionId)
+    return project === null ? [this.root] : [project, this.root]
+  }
+
+  /** Every note visible to one Session: its project notes plus every global note. */
   async list(request) {
     try {
       const sessionId = textOf(request?.sessionId, 160) || null
-      const notes = await readAllNotes(this.root)
+      const notes = await readNotesFrom(await this.rootsFor(sessionId))
       const visible = notes.filter(
         (note) => note.scope === 'global' || (sessionId !== null && note.sessionId === sessionId),
       )
@@ -81,7 +111,8 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
     const id = textOf(request?.id, 64)
     if (!isNoteId(id)) return fail('bad-id', '便签 ID 无效')
     try {
-      const note = await findNote(this.root, id)
+      const sessionId = textOf(request?.sessionId, 160) || null
+      const note = await findNoteIn(await this.rootsFor(sessionId), id)
       if (note === undefined) return fail('not-found', '便签已不存在，可能已被删除')
       return ok({ note: toDetail(note) })
     } catch (error) {
@@ -97,7 +128,11 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
       const scope = request?.scope === 'global' ? 'global' : 'session'
       const sessionId = textOf(request?.sessionId, 160) || null
       if (scope === 'session' && sessionId === null) return fail('bad-session', '会话便签需要一个会话 ID')
-      const existing = await readAllNotes(this.root)
+      // Session notes follow their project; an unknown workspace falls back to
+      // the global store so a capture is never lost.
+      const project = scope === 'session' ? await this.projectRootOf(sessionId) : null
+      const targetRoot = project ?? this.root
+      const existing = await readNotesFrom(targetRoot === this.root ? [this.root] : [targetRoot, this.root])
       if (existing.length >= this.maxNotes) {
         return fail('limit', `便签数量已达到上限（${String(this.maxNotes)}），请先删除一些便签`)
       }
@@ -114,7 +149,7 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
         body,
       }
       try {
-        const path = await writeNote(this.root, note)
+        const path = await writeNote(targetRoot, note)
         return ok({ note: toSummary({ ...note, path }) })
       } catch (error) {
         return fail('write-failed', errorMessage(error))
@@ -130,7 +165,8 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
       const body = textOf(request?.body, MAX_BODY)
       if (body.trim().length === 0) return fail('empty', '便签内容不能为空')
       try {
-        const existing = await findNote(this.root, id)
+        const sessionId = textOf(request?.sessionId, 160) || null
+        const existing = await findNoteIn(await this.rootsFor(sessionId), id)
         if (existing === undefined) return fail('not-found', '便签已不存在，可能已被删除')
         const note = {
           ...existing,
@@ -139,7 +175,11 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
           scope: request?.scope === 'global' ? 'global' : 'session',
           updatedAt: Math.max(Date.now(), existing.updatedAt),
         }
-        const path = await writeNote(this.root, note)
+        // Toggling visibility moves the file between the project and global store.
+        const owner = note.scope === 'session' ? (existing.sessionId ?? sessionId) : null
+        const project = owner === null ? null : await this.projectRootOf(owner)
+        const targetRoot = note.scope === 'global' ? this.root : (project ?? this.root)
+        const path = await writeNote(targetRoot, note)
         // A title change renames the file; do not leave the old one behind.
         if (typeof existing.path === 'string' && existing.path !== path) {
           await removeNote(existing.path)
@@ -161,7 +201,8 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
       const id = textOf(request?.id, 64)
       if (!isNoteId(id)) return fail('bad-id', '便签 ID 无效')
       try {
-        const existing = await findNote(this.root, id)
+        const sessionId = textOf(request?.sessionId, 160) || null
+        const existing = await findNoteIn(await this.rootsFor(sessionId), id)
         if (existing !== undefined) await removeNote(existing.path)
         return ok({ removed: true })
       } catch (error) {
