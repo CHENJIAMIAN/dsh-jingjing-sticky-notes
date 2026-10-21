@@ -91,28 +91,28 @@ window.__ModuleLoader__.load({
 .dsn-search input{flex:1;min-width:0;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;border-radius:8px;padding:6px 9px;transition:border-color 150ms ease}
 .dsn-search input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
 .dsn-scroll{flex:1;min-height:0;overflow-y:auto;padding:8px 8px 28px;scrollbar-gutter:stable}
-.dsn-row{position:relative;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 8px;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:border-color 150ms ease,box-shadow 150ms ease,opacity 150ms ease}
+.dsn-row{position:relative;display:flex;align-items:stretch;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 8px;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:border-color 150ms ease,box-shadow 150ms ease,opacity 150ms ease}
 .dsn-row:hover{border-color:var(--dsw-alias-border-l2);box-shadow:0 3px 10px rgba(0,0,0,.10)}
 .dsn-row:focus-within{border-color:var(--dsw-alias-border-l2)}
 .dsn-row[data-favorite]::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dsw-alias-brand-primary);border-radius:12px 0 0 12px;pointer-events:none;z-index:1}
 .dsn-row[data-busy]{opacity:.75}
-.dsn-row-open{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:10px 12px 8px;border-radius:12px 12px 0 0;cursor:pointer}
+/* Left content column: title, one-line snippet, then a hairline before the meta row. */
+.dsn-row-open{appearance:none;flex:1;min-width:0;display:flex;flex-direction:column;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:0;border-radius:12px 0 0 12px;cursor:pointer}
 .dsn-row-open:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+.dsn-row-head{display:block;padding:10px 12px 8px}
 .dsn-title{display:block;font-size:13px;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-/* The card tail is one capsule strip: a clickable text cell on the left, then
-   a divided action group. Cell widths follow content instead of splitting evenly. */
-.dsn-row-foot{display:flex;align-items:stretch;min-width:0;min-height:36px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:0 0 11px 11px;overflow:hidden}
-.dsn-meta{appearance:none;border:none;background:transparent;display:flex;align-items:center;gap:6px;font:inherit;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;flex:1;overflow:hidden;padding:0 10px;text-align:left;cursor:pointer}
-.dsn-meta:hover{color:var(--dsw-alias-label-primary)}
-.dsn-meta:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+.dsn-row-meta{display:flex;align-items:center;gap:6px;padding:7px 12px;border-top:1px solid var(--dsw-alias-border-l1);font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden}
 .dsn-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
 .dsn-chip[data-global]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dsn-row-actions{display:flex;align-items:stretch;flex:none;margin-left:auto}
-.dsn-row-actions .dsn-iconbtn{width:34px;height:auto;min-height:36px;border-radius:0;border-left:1px solid var(--dsw-alias-border-l1)}
-.dsn-row-actions .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-1)}
-.dsn-row-actions .dsn-iconbtn:focus-visible{outline-offset:-2px}
+/* Right action rail: full-height buttons split by vertical rules. */
+.dsn-row-rail{display:flex;align-items:stretch;flex:none;border-left:1px solid var(--dsw-alias-border-l1)}
+.dsn-row-rail .dsn-iconbtn{width:34px;height:auto;border-radius:0;border-left:1px solid var(--dsw-alias-border-l1)}
+.dsn-row-rail .dsn-iconbtn:first-child{border-left:none}
+.dsn-row-rail .dsn-iconbtn:last-child{border-radius:0 11px 11px 0}
+.dsn-row-rail .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-2)}
+.dsn-row-rail .dsn-iconbtn:focus-visible{outline-offset:-2px}
 .dsn-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:44px 18px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.8}
 .dsn-empty-icon{opacity:.6}
 .dsn-empty-text{white-space:pre-line;margin:0}
@@ -729,15 +729,15 @@ window.__ModuleLoader__.load({
         h(
           'button',
           { type: 'button', className: 'dsn-row-open', onClick: () => onOpen(note.id), title: note.title },
-          h('span', { className: 'dsn-title' }, note.title),
-          note.snippet.length > 0 ? h('span', { className: 'dsn-snippet' }, note.snippet) : null,
-        ),
-        h(
-          'div',
-          { className: 'dsn-row-foot' },
           h(
-            'button',
-            { type: 'button', className: 'dsn-meta', title: note.title, onClick: () => onOpen(note.id) },
+            'span',
+            { className: 'dsn-row-head' },
+            h('span', { className: 'dsn-title' }, note.title),
+            note.snippet.length > 0 ? h('span', { className: 'dsn-snippet' }, note.snippet) : null,
+          ),
+          h(
+            'span',
+            { className: 'dsn-row-meta' },
             h(
               'span',
               { className: 'dsn-chip', 'data-global': note.scope === 'global' || undefined },
@@ -745,60 +745,60 @@ window.__ModuleLoader__.load({
             ),
             h('span', { className: 'dsn-time' }, formatTime(note.updatedAt)),
           ),
+        ),
+        h(
+          'div',
+          { className: 'dsn-row-rail' },
           h(
-            'div',
-            { className: 'dsn-row-actions' },
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'dsn-iconbtn',
-                'data-active': note.favorite || undefined,
-                title: favoriteLabel,
-                'aria-label': favoriteLabel,
-                'aria-pressed': note.favorite ? 'true' : 'false',
-                disabled: busy,
-                onClick: () => onFavorite(note),
-              },
-              h(IconStar, { size: 18, filled: note.favorite }),
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'dsn-iconbtn',
-                title: t('row.insert'),
-                'aria-label': t('row.insert'),
-                disabled: busy,
-                onClick: () => onInsert(note),
-              },
-              h(IconInsert, { size: 18 }),
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'dsn-iconbtn',
-                title: scopeLabel,
-                'aria-label': scopeLabel,
-                disabled: busy,
-                onClick: () => onScope(note),
-              },
-              h(IconGlobe, { size: 18 }),
-            ),
-            h(
-              'button',
-              {
-                type: 'button',
-                className: 'dsn-iconbtn',
-                'data-danger': confirming || undefined,
-                title: deleteLabel,
-                'aria-label': deleteLabel,
-                disabled: busy,
-                onClick: () => onDelete(note),
-              },
-              h(IconTrash, { size: 18 }),
-            ),
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn',
+              'data-active': note.favorite || undefined,
+              title: favoriteLabel,
+              'aria-label': favoriteLabel,
+              'aria-pressed': note.favorite ? 'true' : 'false',
+              disabled: busy,
+              onClick: () => onFavorite(note),
+            },
+            h(IconStar, { size: 18, filled: note.favorite }),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn',
+              title: t('row.insert'),
+              'aria-label': t('row.insert'),
+              disabled: busy,
+              onClick: () => onInsert(note),
+            },
+            h(IconInsert, { size: 18 }),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn',
+              title: scopeLabel,
+              'aria-label': scopeLabel,
+              disabled: busy,
+              onClick: () => onScope(note),
+            },
+            h(IconGlobe, { size: 18 }),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn',
+              'data-danger': confirming || undefined,
+              title: deleteLabel,
+              'aria-label': deleteLabel,
+              disabled: busy,
+              onClick: () => onDelete(note),
+            },
+            h(IconTrash, { size: 18 }),
           ),
         ),
       )
