@@ -96,21 +96,19 @@ window.__ModuleLoader__.load({
 .dsn-row:focus-within{border-color:var(--dsw-alias-border-l2)}
 .dsn-row[data-favorite]::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dsw-alias-brand-primary);border-radius:12px 0 0 12px;pointer-events:none;z-index:1}
 .dsn-row[data-busy]{opacity:.75}
-/* Left content column: title, one-line snippet, then a hairline before the meta row. */
+/* Left content column; no internal rules — only the dashed split to the rail. */
 .dsn-row-open{appearance:none;flex:1;min-width:0;display:flex;flex-direction:column;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:0;border-radius:12px 0 0 12px;cursor:pointer}
 .dsn-row-open:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
-.dsn-row-head{display:block;padding:10px 12px 8px}
+.dsn-row-head{display:block;padding:10px 12px 2px}
 .dsn-title{display:block;font-size:13px;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.dsn-row-meta{display:flex;align-items:center;gap:6px;padding:7px 12px;border-top:1px solid var(--dsw-alias-border-l1);font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden}
+.dsn-row-meta{display:flex;align-items:center;gap:6px;padding:2px 12px 10px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden}
 .dsn-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
 .dsn-chip[data-global]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Right action rail: full-height buttons split by vertical rules. */
-.dsn-row-rail{display:flex;align-items:stretch;flex:none;border-left:1px solid var(--dsw-alias-border-l1)}
-.dsn-row-rail .dsn-iconbtn{width:34px;height:auto;border-radius:0;border-left:1px solid var(--dsw-alias-border-l1)}
-.dsn-row-rail .dsn-iconbtn:first-child{border-left:none}
-.dsn-row-rail .dsn-iconbtn:last-child{border-radius:0 11px 11px 0}
+/* Right action rail: a 2x2 grid, separated from the text by one dashed rule. */
+.dsn-row-rail{display:grid;grid-template-columns:repeat(2,34px);grid-template-rows:repeat(2,1fr);flex:none;align-self:stretch;border-left:1px dashed var(--dsw-alias-border-l2);border-radius:0 11px 11px 0;overflow:hidden}
+.dsn-row-rail .dsn-iconbtn{width:100%;height:100%;min-height:0;border-radius:0;border:none}
 .dsn-row-rail .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsn-row-rail .dsn-iconbtn:focus-visible{outline-offset:-2px}
 .dsn-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:44px 18px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.8}
