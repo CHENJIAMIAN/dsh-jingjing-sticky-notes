@@ -35,6 +35,36 @@ async function loadClient() {
   return { captured, plugin }
 }
 
+/** Minimal DOM node for the DOM→Markdown converter tests. */
+function textNode(value) {
+  return { nodeType: 3, nodeValue: value }
+}
+
+/** Minimal element node; children get a parentElement so ancestor context works. */
+function element(tag, attributes = {}, ...children) {
+  const node = {
+    nodeType: 1,
+    nodeName: tag.toUpperCase(),
+    childNodes: children,
+    children: children.filter((child) => child.nodeType === 1),
+    getAttribute: (name) => (attributes[name] === undefined || attributes[name] === false ? null : String(attributes[name])),
+  }
+  if (attributes.checked !== undefined) node.checked = attributes.checked
+  for (const child of children) child.parentElement = node
+  return node
+}
+
+/** Clipper that accepts every node; text is taken verbatim. */
+const FULL_CLIP = {
+  contains: () => true,
+  textOf: (node) => (node.nodeType === 3 ? String(node.nodeValue ?? '') : ''),
+}
+
+/** Run the converter against a fake DOM tree. */
+function markdownOf(plugin, root, clipper = FULL_CLIP) {
+  return plugin.__internals.domToMarkdown(root, clipper)
+}
+
 test('client contribution exposes its seats and debug internals', async () => {
   const { captured, plugin } = await loadClient()
   assert.equal(captured.id, 'dsh-sticky-notes')
@@ -42,6 +72,8 @@ test('client contribution exposes its seats and debug internals', async () => {
   // The array comes from another VM realm, so compare its contents, not identity.
   assert.deepEqual(Array.from(plugin.inject), ['slots', 'remote', 'locale', 'sessions', 'sidebarRightTabs', 'sidebarRight', 'uiSession'])
   assert.equal(typeof plugin.__internals.renderMarkdown, 'function')
+  assert.equal(typeof plugin.__internals.selectionToMarkdown, 'function')
+  assert.equal(typeof plugin.__internals.domToMarkdown, 'function')
   assert.equal(typeof plugin.__internals.titleOfText, 'function')
   assert.equal(typeof plugin.__internals.insertIntoComposer, 'function')
 })
@@ -63,6 +95,132 @@ test('renderMarkdown covers the shapes the panel relies on', async () => {
   assert.doesNotMatch(render('<script>alert(1)</script>'), /<script>/)
   assert.match(render('[bad](javascript:alert(1))'), /\[bad\]\(javascript:alert\(1\)\)/)
   assert.match(render('[ok](https://example.com)'), /<a href="https:\/\/example\.com"/)
+})
+
+test('domToMarkdown rebuilds headings, emphasis, code and links from rendered HTML', async () => {
+  const { plugin } = await loadClient()
+  const doc = element(
+    'div',
+    {},
+    element('h2', {}, textNode('问题列表')),
+    element(
+      'p',
+      {},
+      textNode('结论是 '),
+      element('strong', {}, textNode('先重启')),
+      textNode('，然后执行 '),
+      element('code', {}, textNode('pnpm test')),
+      textNode('。'),
+    ),
+    element('p', {}, element('a', { href: 'https://example.com/doc' }, textNode('文档'))),
+  )
+  assert.equal(markdownOf(plugin, doc), '## 问题列表\n\n结论是 **先重启**，然后执行 `pnpm test`。\n\n[文档](https://example.com/doc)')
+})
+
+test('domToMarkdown keeps task lists and ordered numbering', async () => {
+  const { plugin } = await loadClient()
+  const doc = element(
+    'div',
+    {},
+    element(
+      'ul',
+      {},
+      element('li', {}, element('input', { type: 'checkbox', checked: true }), textNode('完成项')),
+      element('li', {}, element('input', { type: 'checkbox', checked: false }), textNode('待办项')),
+    ),
+    element('ol', { start: 3 }, element('li', {}, textNode('第三')), element('li', {}, textNode('第四'))),
+  )
+  assert.equal(markdownOf(plugin, doc), '- [x] 完成项\n- [ ] 待办项\n\n3. 第三\n4. 第四')
+})
+
+test('domToMarkdown keeps tables and code fences', async () => {
+  const { plugin } = await loadClient()
+  const table = element(
+    'div',
+    { class: 'md-table-wide' },
+    element(
+      'table',
+      {},
+      element('thead', {}, element('tr', {}, element('th', {}, textNode('名称')), element('th', {}, textNode('数量')))),
+      element('tbody', {}, element('tr', {}, element('td', {}, textNode('苹果')), element('td', {}, textNode('2')))),
+    ),
+  )
+  assert.equal(markdownOf(plugin, table), '| 名称 | 数量 |\n| --- | --- |\n| 苹果 | 2 |')
+
+  const code = element(
+    'div',
+    { class: 'md-code-block' },
+    element(
+      'div',
+      { 'data-code-block-banner': '' },
+      element('div', { class: '_infostring_abc_1' }, textNode('js')),
+      element('button', {}, textNode('复制')),
+    ),
+    element('div', { 'data-code-block-content': '' }, element('pre', { class: 'shiki' }, element('code', {}, textNode('const a = 1\n')))),
+  )
+  assert.equal(markdownOf(plugin, code), '```js\nconst a = 1\n```')
+})
+
+test('domToMarkdown keeps block quote bodies and drops message chrome', async () => {
+  const { plugin } = await loadClient()
+  const quote = element('blockquote', {}, element('p', {}, textNode('引用')), element('p', {}, textNode('第二段')))
+  assert.equal(markdownOf(plugin, quote), '> 引用\n>\n> 第二段')
+
+  const chrome = element(
+    'div',
+    {},
+    element('p', {}, textNode('正文')),
+    element('div', { 'data-turn-tail': 4 }, textNode('14:20')),
+    element('button', {}, textNode('复制')),
+  )
+  assert.equal(markdownOf(plugin, chrome), '正文')
+})
+
+test('domToMarkdown clips a partial selection and keeps ancestor context', async () => {
+  const { plugin } = await loadClient()
+  const paragraph = element('p', {}, textNode('你好世界'))
+  const clipped = {
+    contains: () => true,
+    textOf: (node) => (node.nodeType === 3 ? String(node.nodeValue).slice(2, 4) : ''),
+  }
+  assert.equal(markdownOf(plugin, paragraph, clipped), '世界')
+
+  const quoted = element('p', {}, textNode('引用段落'))
+  element('blockquote', {}, quoted)
+  assert.equal(markdownOf(plugin, quoted), '> 引用段落')
+
+  const second = element('li', {}, textNode('第二项'))
+  element('ol', { start: 2 }, element('li', {}, textNode('第一项')), second)
+  assert.equal(markdownOf(plugin, second), '3. 第二项')
+})
+
+test('domToMarkdown clips code blocks to the selected lines', async () => {
+  const { plugin } = await loadClient()
+  const dropped = textNode('a = 1\n')
+  const kept = textNode('b = 2\n')
+  const pre = element('pre', {}, element('code', {}, dropped, kept))
+  const clipper = {
+    contains: (node) => node !== dropped,
+    textOf: (node) => (node.nodeType === 3 ? String(node.nodeValue) : ''),
+  }
+  assert.equal(markdownOf(plugin, pre, clipper), '```\nb = 2\n```')
+})
+
+test('selectionToMarkdown only rebuilds selections inside the chat transcript', async () => {
+  const { plugin } = await loadClient()
+  const root = element('div', {}, element('p', {}, textNode('正文')))
+  const range = {
+    commonAncestorContainer: root,
+    startContainer: root,
+    startOffset: 0,
+    endContainer: root,
+    endOffset: 0,
+    intersectsNode: () => true,
+  }
+  root.closest = () => null
+  assert.equal(plugin.__internals.selectionToMarkdown(range), '')
+  root.closest = () => ({})
+  assert.equal(plugin.__internals.selectionToMarkdown(range), '正文')
 })
 
 test('titleOfText strips markdown markers and bounds the title', async () => {

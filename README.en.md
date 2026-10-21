@@ -25,7 +25,9 @@ again, this panel is your scratch pad.
 - **Capture a reply**: the note icon under every assistant reply. The Host reads the original text
   from the session log instead of scraping the DOM, so Markdown is preserved exactly;
 - **Capture a selection**: select text in the conversation, then click "Pin note" in the floating
-  button;
+  button. Inside the chat transcript the fragment is rebuilt as Markdown from the rendered DOM
+  (headings, lists, task checkboxes, code fences, tables, quotes, links and inline formatting);
+  for the exact source capture a whole reply instead;
 - **Capture the whole chat**: one click in the notes toolbar folds the visible user/assistant text
   into a single excerpt note.
 
@@ -179,7 +181,7 @@ here edits the running plugin.
 | File | Purpose |
 |---|---|
 | `index.js` | Host half: note service (9 Typert Remote endpoints), project directory resolution, session log capture |
-| `client.js` | Client half: sidebar panel, capture affordances, Markdown renderer, insert-back, styles and copy |
+| `client.js` | Client half: sidebar panel, capture affordances, Markdown renderer and selection rebuild, insert-back, styles and copy |
 | `lib/store.js` | Markdown store: frontmatter parse/serialize, ordering, directory I/O |
 | `lib/schemas.js` | Hand-written dependency-free request validators (no zod: a missing module there would take the Host down) |
 | `lib/typert.host.js` | Host-side Typert manifest |
@@ -215,6 +217,10 @@ here edits the running plugin.
   expose the reply text yet — send one message and capture again;
 - "Save whole chat" joins the visible user/assistant text into one note and skips reasoning, tool
   calls, and tool output;
+- "Pin note" rebuilds Markdown from the rendered DOM: headings, lists, code fences and tables survive,
+  but the original markers (`*` vs `_`, reference links, footnotes, raw HTML) are normalized or lost,
+  and a half-selected first/last block gets the marker of its heading / list / quote / code block.
+  Use the reply capture button when the exact source matters;
 - Note contents are never translated when the UI language changes — existing files stay as written.
 
 ## License

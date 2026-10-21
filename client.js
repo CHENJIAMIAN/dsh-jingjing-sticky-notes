@@ -501,6 +501,466 @@ window.__ModuleLoader__.load({
       return out.join('\n')
     }
 
+    // ── selection markdown (rendered DOM → Markdown) ───────────────────────
+    //
+    // A browser selection is a DOM range, not a slice of the Markdown source.
+    // DSH renders every reply from Markdown into semantic HTML, so a selected
+    // fragment can be rebuilt from the elements it covers: headings, lists,
+    // code blocks, tables and inline emphasis survive. This is a reconstruction,
+    // not the original source; capturing a whole reply stays exact.
+
+    const BLOCK_HANDLERS = new Set(['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'PRE', 'HR', 'BLOCKQUOTE', 'UL', 'OL', 'TABLE', 'LI'])
+    const CONTAINER_TAGS = new Set([
+      'ADDRESS', 'ARTICLE', 'ASIDE', 'DETAILS', 'DIV', 'DL', 'DT', 'DD', 'FIELDSET', 'FIGCAPTION', 'FIGURE', 'FOOTER',
+      'FORM', 'HEADER', 'HGROUP', 'MAIN', 'NAV', 'SECTION', 'SUMMARY', 'TBODY', 'THEAD', 'TFOOT', 'TR', 'TD', 'TH',
+    ])
+    const SKIP_ATTRIBUTES = ['data-turn-tail', 'data-clock', 'data-dsn-ignore-capture', 'data-turn-usage-details']
+
+    const isElement = (node) => typeof node === 'object' && node !== null && node.nodeType === 1
+    const isText = (node) => typeof node === 'object' && node !== null && node.nodeType === 3
+    const tagOf = (node) => (typeof node.nodeName === 'string' ? node.nodeName.toUpperCase() : '')
+    const classOf = (node) => String(attrOf(node, 'class') ?? '')
+    const hasClass = (node, name) => classOf(node).split(/\s+/).includes(name)
+    const classIncludes = (node, piece) => classOf(node).includes(piece)
+    const childNodesOf = (node) => (node !== null && node !== undefined && node.childNodes !== undefined && node.childNodes !== null ? Array.from(node.childNodes) : [])
+    const parentOf = (node) => (node !== null && node !== undefined && node.parentElement !== undefined ? node.parentElement ?? null : null)
+
+    /** Attribute read that never throws on exotic nodes. */
+    function attrOf(node, name) {
+      try {
+        return typeof node.getAttribute === 'function' ? node.getAttribute(name) : null
+      } catch {
+        return null
+      }
+    }
+
+    /** UI chrome inside a message must never leak into a note. */
+    function isSkipped(node) {
+      const tag = tagOf(node)
+      if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEMPLATE' || tag === 'NOSCRIPT' || tag === 'SVG') return true
+      if (tag === 'BUTTON' && !classIncludes(node, 'fileMention')) return true
+      if (hasClass(node, 'sr-only') || attrOf(node, 'hidden') !== null) return true
+      for (const name of SKIP_ATTRIBUTES) if (attrOf(node, name) !== null) return true
+      return false
+    }
+
+    /** First descendant element that matches one predicate. */
+    function findDescendant(node, predicate) {
+      for (const child of childNodesOf(node)) {
+        if (!isElement(child)) continue
+        if (isSkipped(child)) continue
+        if (predicate(child)) return child
+        const found = findDescendant(child, predicate)
+        if (found !== null) return found
+      }
+      return null
+    }
+
+    /** Concatenated text nodes, ignoring the selection clip. */
+    function plainText(node) {
+      if (isText(node)) return String(node.nodeValue ?? '')
+      let out = ''
+      for (const child of childNodesOf(node)) out += plainText(child)
+      return out
+    }
+
+    /** Concatenated text nodes, clipped to the selection. */
+    function rawText(node, clipper) {
+      if (isText(node)) return clipper.contains(node) ? clipper.textOf(node) : ''
+      if (!isElement(node)) return ''
+      let out = ''
+      for (const child of childNodesOf(node)) out += rawText(child, clipper)
+      return out
+    }
+
+    /** Selection-aware view over one DOM range. */
+    function clipperFromRange(range) {
+      const start = range.startContainer
+      const end = range.endContainer
+      const contains = (node) => {
+        try {
+          return range.intersectsNode(node)
+        } catch {
+          return true
+        }
+      }
+      const textOf = (node) => {
+        const value = isText(node) ? String(node.nodeValue ?? '') : ''
+        if (node === start && node === end) return value.slice(range.startOffset, range.endOffset)
+        if (node === start) return value.slice(range.startOffset)
+        if (node === end) return value.slice(0, range.endOffset)
+        return value
+      }
+      return { contains, textOf }
+    }
+
+    /** Inline code span with a delimiter that cannot collide with its text. */
+    function codeSpan(value) {
+      const text = String(value).replace(/\r?\n/g, ' ')
+      if (text.length === 0) return ''
+      const runs = text.match(/`+/g)
+      const longest = runs === null ? 0 : Math.max(...runs.map((run) => run.length))
+      const fence = '`'.repeat(longest + 1)
+      const padded = text.startsWith('`') || text.endsWith('`') || text.startsWith(' ') || text.endsWith(' ') ? ' ' : ''
+      return `${fence}${padded}${text}${padded}${fence}`
+    }
+
+    /** Protect a rendered fragment (code, math) from whitespace normalization. */
+    function placeholder(state, value) {
+      state.tokens.push(value)
+      return `\u0000${String(state.tokens.length - 1)}\u0000`
+    }
+
+    /** Put protected fragments back once block structure is final. */
+    function restoreTokens(markdown, state) {
+      return String(markdown).replace(/\u0000(\d+)\u0000/g, (match, index) => state.tokens[Number(index)] ?? '')
+    }
+
+    /** Collapse DOM whitespace but keep explicit hard breaks. */
+    function normalizeInline(value) {
+      let text = String(value ?? '')
+      text = text.replace(/[ \t\u00a0]+/g, ' ')
+      text = text.replace(/[ \t]*\n[ \t]*/g, '\n')
+      text = text.replace(/\n{3,}/g, '\n\n')
+      text = text.replace(/\u0001/g, '  \n')
+      return text.replace(/^[ \t\n]+|[ \t\n]+$/g, '')
+    }
+
+    /** The Tex source behind one KaTeX element. */
+    function mathTex(node) {
+      const annotation = findDescendant(node, (child) => tagOf(child) === 'ANNOTATION' && String(attrOf(child, 'encoding') ?? '').includes('tex'))
+      return annotation === null ? null : plainText(annotation).trim()
+    }
+
+    /** Language tag of a rendered code block, when one is exposed. */
+    function codeLanguage(node) {
+      let scope = node
+      let walker = node
+      while (walker !== null && !classIncludes(walker, 'md-code-block')) walker = parentOf(walker)
+      if (walker !== null) scope = walker
+      const banner = findDescendant(scope, (child) => attrOf(child, 'data-code-block-banner') !== null)
+      if (banner !== null) {
+        const label = findDescendant(banner, (child) => classIncludes(child, 'infostring') || classIncludes(child, 'language'))
+        if (label !== null) {
+          const text = plainText(label).trim()
+          if (text.length > 0) return text.split(/\s+/)[0]
+        }
+      }
+      const code = findDescendant(scope, (child) => tagOf(child) === 'CODE')
+      const match = code === null ? null : /language-([\w#+.-]+)/.exec(classOf(code))
+      return match === null ? '' : match[1]
+    }
+
+    /** Fenced code block, clipped to the selected lines. */
+    function codeBlockMarkdown(node, clipper) {
+      const pre = tagOf(node) === 'PRE' ? node : findDescendant(node, (child) => tagOf(child) === 'PRE')
+      if (pre === null) return ''
+      const language = codeLanguage(node)
+      let code = rawText(pre, clipper).replace(/\r\n/g, '\n')
+      code = code.replace(/\n$/, '')
+      if (code.replace(/\s/g, '').length === 0) return ''
+      const runs = code.match(/`+/g)
+      const longest = runs === null ? 0 : Math.max(...runs.map((run) => run.length))
+      const fence = '`'.repeat(Math.max(3, longest + 1))
+      return `${fence}${language}\n${code}\n${fence}`
+    }
+
+    /** Inline children of one element as Markdown. */
+    function inlineMarkdown(nodes, clipper, state) {
+      let out = ''
+      for (const node of nodes) out += inlineNode(node, clipper, state)
+      return out
+    }
+
+    /** One inline node as Markdown. */
+    function inlineNode(node, clipper, state) {
+      if (isText(node)) return clipper.contains(node) ? String(clipper.textOf(node) ?? '') : ''
+      if (!isElement(node) || isSkipped(node) || !clipper.contains(node)) return ''
+      const tag = tagOf(node)
+      if (hasClass(node, 'katex-display')) {
+        const tex = mathTex(node)
+        return tex === null ? '' : placeholder(state, `$$${tex}$$`)
+      }
+      if (hasClass(node, 'katex')) {
+        const tex = mathTex(node)
+        return tex === null ? '' : placeholder(state, `$${tex}$`)
+      }
+      if (tag === 'BR') return '\u0001'
+      if (tag === 'STRONG' || tag === 'B') return `**${inlineMarkdown(childNodesOf(node), clipper, state)}**`
+      if (tag === 'EM' || tag === 'I') return `*${inlineMarkdown(childNodesOf(node), clipper, state)}*`
+      if (tag === 'DEL' || tag === 'S' || tag === 'STRIKE') return `~~${inlineMarkdown(childNodesOf(node), clipper, state)}~~`
+      if (tag === 'CODE') {
+        const value = rawText(node, clipper)
+        return value.length === 0 ? '' : placeholder(state, codeSpan(value))
+      }
+      if (tag === 'A') {
+        const href = attrOf(node, 'href')
+        const label = inlineMarkdown(childNodesOf(node), clipper, state)
+        if (href === null || !safeUrl(href)) return label
+        return `[${label.length > 0 ? label : href}](${href.replace(/ /g, '%20')})`
+      }
+      if (tag === 'IMG') {
+        const alt = attrOf(node, 'alt') ?? ''
+        const src = attrOf(node, 'src')
+        if (src === null || /^(blob:|data:)/i.test(src)) return alt
+        return `![${alt}](${src})`
+      }
+      if (tag === 'INPUT') return ''
+      if (tag === 'BUTTON' && classIncludes(node, 'fileMention')) {
+        const path = plainText(node).trim()
+        return path.length === 0 ? '' : placeholder(state, codeSpan(path))
+      }
+      return inlineMarkdown(childNodesOf(node), clipper, state)
+    }
+
+    /** Whether a node is a block this converter serializes on its own. */
+    function isBlockHandler(node) {
+      return isElement(node) && (BLOCK_HANDLERS.has(tagOf(node)) || classIncludes(node, 'md-code-block'))
+    }
+
+    /** Whether a node lays out blocks as children (plain wrapper). */
+    function isContainer(node) {
+      return isElement(node) && CONTAINER_TAGS.has(tagOf(node))
+    }
+
+    /** Marker of one list item, resolved from its parent list when possible. */
+    function markerOf(item) {
+      const parent = parentOf(item)
+      if (parent !== null && tagOf(parent) === 'OL') {
+        const start = Math.max(1, Number(attrOf(parent, 'start')) || 1)
+        const index = Array.from(parent.children ?? []).indexOf(item)
+        return `${String(start + Math.max(0, index))}. `
+      }
+      return '- '
+    }
+
+    /** Body of one list item, without its marker. */
+    function listItemBody(item, clipper, state) {
+      const checkbox = findDescendant(item, (child) => tagOf(child) === 'INPUT' && String(attrOf(child, 'type') ?? '').toLowerCase() === 'checkbox')
+      const checked = checkbox !== null && (checkbox.checked === true || attrOf(checkbox, 'checked') !== null)
+      const body = blocksMarkdown(childNodesOf(item), clipper, state)
+      if (body.length === 0) return ''
+      return checkbox === null ? body : `${checked ? '[x]' : '[ ]'} ${body}`
+    }
+
+    /** Attach a list marker and indent the continuation lines. */
+    function indentListItem(body, marker) {
+      const pad = ' '.repeat(marker.length)
+      return body
+        .split('\n')
+        .map((line, index) => (index === 0 ? marker + line : line.length > 0 ? pad + line : ''))
+        .join('\n')
+    }
+
+    /** One list as Markdown, keeping numbering across partial selections. */
+    function listMarkdown(list, clipper, state) {
+      const ordered = tagOf(list) === 'OL'
+      const start = Math.max(1, Number(attrOf(list, 'start')) || 1)
+      const lines = []
+      let index = 0
+      for (const child of childNodesOf(list)) {
+        if (!isElement(child) || tagOf(child) !== 'LI') continue
+        const marker = ordered ? `${String(start + index)}. ` : '- '
+        index += 1
+        if (!clipper.contains(child)) continue
+        const body = listItemBody(child, clipper, state)
+        if (body.length > 0) lines.push(indentListItem(body, marker))
+      }
+      return lines.join('\n')
+    }
+
+    /** Cells of one table row, in order. */
+    function rowCells(row) {
+      return childNodesOf(row).filter((cell) => isElement(cell) && (tagOf(cell) === 'TD' || tagOf(cell) === 'TH'))
+    }
+
+    /** Every row below a table or a section wrapper, in document order. */
+    function tableRows(node, rows) {
+      for (const child of childNodesOf(node)) {
+        if (!isElement(child)) continue
+        if (tagOf(child) === 'TR') rows.push(child)
+        else tableRows(child, rows)
+      }
+      return rows
+    }
+
+    /** One table cell as Markdown cell text. */
+    function tableCellText(cell, clipper, state) {
+      return normalizeInline(inlineMarkdown(childNodesOf(cell), clipper, state))
+        .replace(/\n+/g, ' ')
+        .replace(/\|/g, '\\|')
+    }
+
+    /** Alignment marker of one header cell. */
+    function tableAlign(cell) {
+      const style = String(attrOf(cell, 'style') ?? '')
+      const match = /text-align\s*:\s*(left|center|right)/i.exec(style)
+      if (match === null) return '---'
+      const align = match[1].toLowerCase()
+      if (align === 'center') return ':---:'
+      return align === 'right' ? '---:' : ':---'
+    }
+
+    /** One table as GFM Markdown; partial selections re-use the first row as header. */
+    function tableMarkdown(table, clipper, state) {
+      const selected = tableRows(table, []).filter((row) => clipper.contains(row))
+      if (selected.length === 0) return ''
+      const header = rowCells(selected[0])
+      const body = selected.slice(1).map((row) => rowCells(row))
+      const width = Math.max(header.length, ...body.map((cells) => cells.length), 1)
+      const renderRow = (cells) => {
+        const parts = []
+        for (let column = 0; column < width; column += 1) {
+          const cell = cells[column]
+          parts.push(cell === undefined ? '' : tableCellText(cell, clipper, state))
+        }
+        return `| ${parts.join(' | ')} |`
+      }
+      const separators = []
+      for (let column = 0; column < width; column += 1) {
+        const cell = header[column]
+        separators.push(cell === undefined ? '---' : tableAlign(cell))
+      }
+      const lines = [renderRow(header), `| ${separators.join(' | ')} |`]
+      for (const cells of body) lines.push(renderRow(cells))
+      return lines.join('\n')
+    }
+
+    /** Prefix every line of a block quote body. */
+    function prefixQuote(markdown) {
+      if (markdown.length === 0) return markdown
+      return markdown
+        .split('\n')
+        .map((line) => (line.length > 0 ? `> ${line}` : '>'))
+        .join('\n')
+    }
+
+    /** One block element as Markdown. */
+    function blockMarkdown(node, clipper, state) {
+      const tag = tagOf(node)
+      if (tag === 'PRE' || classIncludes(node, 'md-code-block')) return codeBlockMarkdown(node, clipper)
+      if (tag === 'HR') return '---'
+      if (tag === 'BLOCKQUOTE') return prefixQuote(blocksMarkdown(childNodesOf(node), clipper, state))
+      if (tag === 'UL' || tag === 'OL') return listMarkdown(node, clipper, state)
+      if (tag === 'TABLE') return tableMarkdown(node, clipper, state)
+      if (tag === 'LI') {
+        const body = listItemBody(node, clipper, state)
+        return body.length === 0 ? '' : indentListItem(body, markerOf(node))
+      }
+      const inline = normalizeInline(inlineMarkdown(childNodesOf(node), clipper, state))
+      if (inline.length === 0) return ''
+      if (/^H[1-6]$/.test(tag)) return `${'#'.repeat(Number(tag.slice(1)))} ${inline.replace(/\n+/g, ' ')}`
+      return inline
+    }
+
+    /** A run of block children as Markdown blocks separated by blank lines. */
+    function blocksMarkdown(nodes, clipper, state) {
+      const blocks = []
+      let inlineRun = []
+      const flush = () => {
+        if (inlineRun.length === 0) return
+        const text = normalizeInline(inlineMarkdown(inlineRun, clipper, state))
+        if (text.length > 0) blocks.push(text)
+        inlineRun = []
+      }
+      for (const node of nodes) {
+        if (isText(node)) {
+          if (clipper.contains(node)) inlineRun.push(node)
+          continue
+        }
+        if (!isElement(node) || isSkipped(node) || !clipper.contains(node)) continue
+        if (isBlockHandler(node)) {
+          flush()
+          const block = blockMarkdown(node, clipper, state)
+          if (block.length > 0) blocks.push(block)
+          continue
+        }
+        if (isContainer(node)) {
+          flush()
+          const block = blocksMarkdown(childNodesOf(node), clipper, state)
+          if (block.length > 0) blocks.push(block)
+          continue
+        }
+        if (hasClass(node, 'katex-display')) {
+          flush()
+          const math = inlineNode(node, clipper, state)
+          if (math.length > 0) blocks.push(math)
+          continue
+        }
+        inlineRun.push(node)
+      }
+      flush()
+      return blocks.join('\n\n')
+    }
+
+    /** Nearest block the converter can serialize on its own. */
+    function closestBlockHandler(element) {
+      let node = element
+      while (isElement(node)) {
+        const tag = tagOf(node)
+        if (tag === 'TD' || tag === 'TH') return null
+        if (isBlockHandler(node)) return node
+        node = parentOf(node)
+      }
+      return null
+    }
+
+    /** Block wrappers around a selected block, innermost first. */
+    function ancestorWraps(element) {
+      const wraps = []
+      let node = parentOf(element)
+      while (isElement(node)) {
+        const tag = tagOf(node)
+        if (tag === 'BLOCKQUOTE') wraps.push({ kind: 'quote' })
+        else if (tag === 'LI') wraps.push({ kind: 'item', marker: markerOf(node) })
+        node = parentOf(node)
+      }
+      return wraps
+    }
+
+    /** Apply one ancestor wrapper to a finished block. */
+    function applyWrap(markdown, wrap) {
+      if (wrap.kind === 'quote') return prefixQuote(markdown)
+      const pad = ' '.repeat(wrap.marker.length)
+      return markdown
+        .split('\n')
+        .map((line, index) => (index === 0 ? wrap.marker + line : line.length > 0 ? pad + line : ''))
+        .join('\n')
+    }
+
+    /** Rebuild Markdown from a root node and a selection-aware clipper. */
+    function domToMarkdown(root, clipper) {
+      if (root === null || root === undefined) return ''
+      const state = { tokens: [] }
+      const element = isElement(root) ? root : isText(root) ? parentOf(root) : null
+      if (!isElement(element)) return isText(root) ? normalizeInline(clipper.textOf(root)) : ''
+      const block = closestBlockHandler(element)
+      let markdown = block === null ? blocksMarkdown(childNodesOf(element), clipper, state) : blockMarkdown(block, clipper, state)
+      if (markdown.length === 0) return ''
+      for (const wrap of ancestorWraps(block === null ? element : block)) markdown = applyWrap(markdown, wrap)
+      return restoreTokens(markdown, state).trim()
+    }
+
+    /**
+     * Rebuild the Markdown of one browser selection. Returns '' when the range
+     * cannot be interpreted; callers fall back to the plain selected text.
+     */
+    function selectionToMarkdown(range) {
+      if (range === null || range === undefined) return ''
+      const root = range.commonAncestorContainer
+      const element = isElement(root) ? root : isText(root) ? parentOf(root) : null
+      if (!isElement(element)) return ''
+      try {
+        // Only the chat transcript carries rendered Markdown; anything else
+        // (sidebar, dialogs, our own panes) keeps the plain-text capture.
+        if (typeof element.closest === 'function' && element.closest('[data-conversation-scroll]') === null) return ''
+        return domToMarkdown(root, clipperFromRange(range))
+      } catch (error) {
+        console.error('[sticky-notes] selection markdown failed:', error)
+        return ''
+      }
+    }
+
     /** First meaningful line of a selection, for the note title. */
     function titleOfText(text, fallback = '便签') {
       const line = String(text ?? '')
@@ -1452,11 +1912,12 @@ window.__ModuleLoader__.load({
     /**
      * Floating capture button shown next to a text selection in the page.
      * The selected text is captured on selectionchange and reused on click, so
-     * pressing the button cannot lose it to a focus change.
+     * pressing the button cannot lose it to a focus change. Selections inside
+     * the chat transcript are rebuilt as Markdown from the rendered DOM.
      */
     function SelectionCapture({ ctx, store, t }) {
       const [anchor, setAnchor] = useState(null)
-      const [text, setText] = useState('')
+      const [payload, setPayload] = useState(null)
       const [toast, setToast] = useState(null)
       const rootRef = useRef(null)
 
@@ -1476,9 +1937,11 @@ window.__ModuleLoader__.load({
             setAnchor(null)
             return
           }
+          let range
           let rect
           try {
-            rect = selection.getRangeAt(0).getBoundingClientRect()
+            range = selection.getRangeAt(0)
+            rect = range.getBoundingClientRect()
           } catch {
             setAnchor(null)
             return
@@ -1487,7 +1950,14 @@ window.__ModuleLoader__.load({
             setAnchor(null)
             return
           }
-          setText(raw)
+          let markdown = ''
+          try {
+            markdown = selectionToMarkdown(range)
+          } catch (error) {
+            console.error('[sticky-notes] selection markdown failed:', error)
+          }
+          const trimmed = markdown.trim()
+          setPayload({ text: raw, markdown: trimmed.length > 0 ? trimmed : raw })
           setAnchor({
             top: Math.max(8, rect.top - 40),
             left: Math.max(8, Math.min(window.innerWidth - 150, rect.left + rect.width / 2 - 60)),
@@ -1531,14 +2001,19 @@ window.__ModuleLoader__.load({
               {
                 type: 'button',
                 onClick: async () => {
+                  if (payload === null) {
+                    setToast(t('capture.needSelection'))
+                    return
+                  }
                   const sessionId = currentSessionId(ctx)
                   if (sessionId === null) {
                     setToast(t('capture.needSession'))
                     return
                   }
+                  const body = payload.markdown.length > 0 ? payload.markdown : payload.text
                   const result = await store.create({
-                    title: titleOfText(text, t('default.title')),
-                    body: text,
+                    title: titleOfText(payload.text, t('default.title')),
+                    body,
                     scope: 'session',
                     sessionId,
                   })
@@ -1671,7 +2146,7 @@ window.__ModuleLoader__.load({
       inject,
       apply,
       /** Debug handle for the Host-side smoke test; not part of the plugin surface. */
-      __internals: { renderMarkdown, titleOfText, insertIntoComposer, failureText },
+      __internals: { renderMarkdown, selectionToMarkdown, domToMarkdown, titleOfText, insertIntoComposer, failureText },
     }
   },
 })
