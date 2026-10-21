@@ -249,6 +249,23 @@ window.__ModuleLoader__.load({
       'insert.failed': '插入失败，请重试',
       'error.generic': '操作失败',
       'error.notFound': '便签已不存在',
+      'error.code.bad-id': '便签 ID 无效',
+      'error.code.not-found': '便签已不存在，可能已被删除',
+      'error.code.empty': '便签内容不能为空',
+      'error.code.bad-session': '会话便签需要一个会话 ID',
+      'error.code.limit': '便签数量已达上限，请先删除一些',
+      'error.code.write-failed': '写入便签失败',
+      'error.code.read-failed': '读取便签失败',
+      'error.code.list-failed': '加载便签失败',
+      'error.code.remove-failed': '删除便签失败',
+      'error.code.favorite-failed': '更新收藏状态失败',
+      'error.code.scope-failed': '切换可见性失败',
+      'error.code.session-not-found': '找不到这个会话的日志',
+      'error.code.session-read-failed': '读取会话日志失败',
+      'error.code.bad-request': '请求参数不完整',
+      'error.code.transport': '与 Host 的通信失败，请重试',
+      'default.title': '便签',
+      'detail.insertFileText': '便签文件（Markdown）：`{path}`',
     }
 
     const en = {
@@ -309,6 +326,23 @@ window.__ModuleLoader__.load({
       'insert.failed': 'Insert failed, please retry',
       'error.generic': 'Something went wrong',
       'error.notFound': 'The note no longer exists',
+      'error.code.bad-id': 'Invalid note id',
+      'error.code.not-found': 'This note no longer exists',
+      'error.code.empty': 'A note cannot be empty',
+      'error.code.bad-session': 'A chat note needs a chat id',
+      'error.code.limit': 'The note limit is reached; delete some notes first',
+      'error.code.write-failed': 'Could not write the note',
+      'error.code.read-failed': 'Could not read the note',
+      'error.code.list-failed': 'Could not load notes',
+      'error.code.remove-failed': 'Could not delete the note',
+      'error.code.favorite-failed': 'Could not update the favorite state',
+      'error.code.scope-failed': 'Could not change the visibility',
+      'error.code.session-not-found': 'This chat log could not be found',
+      'error.code.session-read-failed': 'Could not read the chat log',
+      'error.code.bad-request': 'The request is missing fields',
+      'error.code.transport': 'Lost the connection to the Host; please retry',
+      'default.title': 'Note',
+      'detail.insertFileText': 'Note file (Markdown): `{path}`',
     }
 
     // ── markdown ───────────────────────────────────────────────────────────
@@ -468,12 +502,12 @@ window.__ModuleLoader__.load({
     }
 
     /** First meaningful line of a selection, for the note title. */
-    function titleOfText(text) {
+    function titleOfText(text, fallback = '便签') {
       const line = String(text ?? '')
         .split(/\r?\n/)
         .map((value) => value.replace(/^\s{0,3}(#{1,6}|[-*+]|\d+\.)\s+/, '').trim())
         .find((value) => value.length > 0)
-      if (line === undefined) return '便签'
+      if (line === undefined) return fallback
       const plain = line.replace(/[*_~`>|]/g, '').trim()
       return plain.length <= 80 ? plain : `${plain.slice(0, 79)}…`
     }
@@ -492,9 +526,29 @@ window.__ModuleLoader__.load({
       return sameDay ? clock : `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${clock}`
     }
 
-    /** Turn a failed Result into one message. */
+    /**
+     * Turn a failed Result into one localized message. The Host reports a
+     * stable `code`, so the browser owns the wording; its own message is only
+     * the fallback for codes this client does not know yet.
+     */
     function failureText(result, t) {
+      const code = result?.error?.code
+      if (typeof code === 'string' && code.length > 0) {
+        const key = `error.code.${code}`
+        const translated = t(key)
+        if (typeof translated === 'string' && translated.length > 0 && translated !== key) return translated
+      }
       return result?.error?.message || t('error.generic')
+    }
+
+    /** Active UI locale id ('zh' | 'en'), used for Host-generated note content. */
+    function currentLocale(ctx) {
+      try {
+        const active = ctx.get('locale')?.getLocale?.()?.active
+        return typeof active === 'string' && active.length > 0 ? active : 'en'
+      } catch {
+        return 'en'
+      }
     }
 
     /** The Session currently on screen, when the Client exposes it. */
@@ -651,9 +705,9 @@ window.__ModuleLoader__.load({
             return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
           }
         },
-        async captureSession(sessionId) {
+        async captureSession(sessionId, locale) {
           try {
-            const carried = await remote.captureSession({ sessionId })
+            const carried = await remote.captureSession({ sessionId, locale })
             if (!carried.ok) return { ok: false, error: { code: 'transport', message: carried.error?.message ?? 'failed' } }
             if (carried.value.ok) store.markDirty()
             return carried.value
@@ -858,7 +912,7 @@ window.__ModuleLoader__.load({
 
       const captureSession = async () => {
         setBusy(true)
-        const result = await store.captureSession(sessionId)
+        const result = await store.captureSession(sessionId, currentLocale(ctx))
         setBusy(false)
         if (!result.ok) {
           notify(failureText(result, t), true)
@@ -1245,7 +1299,7 @@ window.__ModuleLoader__.load({
             {
               type: 'button',
               className: 'dsn-btn',
-              onClick: () => insert(`便签文件（Markdown）：\`${note.path}\``),
+              onClick: () => insert(t('detail.insertFileText', { path: note.path })),
               title: t('detail.insertFile'),
             },
             t('detail.insertFile'),
@@ -1483,7 +1537,7 @@ window.__ModuleLoader__.load({
                     return
                   }
                   const result = await store.create({
-                    title: titleOfText(text),
+                    title: titleOfText(text, t('default.title')),
                     body: text,
                     scope: 'session',
                     sessionId,
@@ -1617,7 +1671,7 @@ window.__ModuleLoader__.load({
       inject,
       apply,
       /** Debug handle for the Host-side smoke test; not part of the plugin surface. */
-      __internals: { renderMarkdown, titleOfText, insertIntoComposer },
+      __internals: { renderMarkdown, titleOfText, insertIntoComposer, failureText },
     }
   },
 })

@@ -284,6 +284,9 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
   async captureSession(request) {
     const sessionId = textOf(request?.sessionId, 160)
     if (sessionId.length === 0) return fail('bad-request', '缺少会话 ID')
+    // The client passes its UI locale so the generated note reads in that
+    // language; an old client without the field keeps the Chinese default.
+    const copy = transcriptCopy(request?.locale)
     const read = await this.readSessionEvents(sessionId)
     if (!read.ok) return read
     const sections = []
@@ -299,16 +302,16 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
       if (role !== 'user' && role !== 'assistant') continue
       const text = messageText(message).trim()
       if (text.length === 0) continue
-      const heading = role === 'user' ? '### 你' : '### 助手'
+      const heading = role === 'user' ? copy.userHeading : copy.assistantHeading
       const block = `${heading}\n\n${text}`
       if (length + block.length > MAX_TRANSCRIPT) break
       sections.push(block)
       length += block.length
       captured += 1
     }
-    if (sections.length === 0) return fail('not-found', '这个会话还没有可保存的对话内容')
-    const body = `> 会话摘录 · ${formatTime(Date.now())}\n\n${sections.join('\n\n')}`
-    return this.create({ title: `对话摘录 ${formatTime(Date.now())}`, body, scope: 'session', sessionId })
+    if (sections.length === 0) return fail('not-found', copy.emptyMessage)
+    const body = `> ${copy.excerpt} · ${formatTime(Date.now())}\n\n${sections.join('\n\n')}`
+    return this.create({ title: `${copy.title} ${formatTime(Date.now())}`, body, scope: 'session', sessionId })
   }
 
   /** Read a Session's complete event log through a short-lived read handle. */
@@ -345,6 +348,31 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
 function errorMessage(error) {
   if (error instanceof Error && error.message.length > 0) return error.message
   return String(error)
+}
+
+/** Copy used for transcript notes, keyed by the caller's UI language. */
+const TRANSCRIPT_COPY = {
+  zh: {
+    userHeading: '### 你',
+    assistantHeading: '### 助手',
+    excerpt: '会话摘录',
+    title: '对话摘录',
+    emptyMessage: '这个会话还没有可保存的对话内容',
+  },
+  en: {
+    userHeading: '### You',
+    assistantHeading: '### Assistant',
+    excerpt: 'Conversation excerpt',
+    title: 'Conversation excerpt',
+    emptyMessage: 'This conversation has no saved messages yet',
+  },
+}
+
+/** Pick transcript copy for a UI locale id; unknown or absent keeps Chinese. */
+function transcriptCopy(locale) {
+  const raw = textOf(locale, 32).trim().toLowerCase()
+  if (raw.length === 0) return TRANSCRIPT_COPY.zh
+  return raw.startsWith('zh') ? TRANSCRIPT_COPY.zh : TRANSCRIPT_COPY.en
 }
 
 /** `YYYY-MM-DD HH:mm` in the Host's local time, for captured-note titles. */

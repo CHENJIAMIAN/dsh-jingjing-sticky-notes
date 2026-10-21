@@ -71,5 +71,39 @@ test('titleOfText strips markdown markers and bounds the title', async () => {
   assert.equal(titleOf('## 一、问题列表\n正文'), '一、问题列表')
   assert.equal(titleOf('- 只有列表项'), '只有列表项')
   assert.equal(titleOf(''), '便签')
+  assert.equal(titleOf('', 'Note'), 'Note')
   assert.equal(titleOf(`${'x'.repeat(200)}`).length, 80)
+})
+
+test('failureText prefers the localized code over the Host message', async () => {
+  const { plugin } = await loadClient()
+  const failureText = plugin.__internals.failureText
+  const t = (key) => (key === 'error.code.not-found' ? 'This note no longer exists' : key)
+  assert.equal(failureText({ ok: false, error: { code: 'not-found', message: '便签已不存在' } }, t), 'This note no longer exists')
+  // Unknown codes fall back to the Host message, then to the generic key.
+  assert.equal(failureText({ ok: false, error: { code: 'future-code', message: 'raw detail' } }, t), 'raw detail')
+  assert.equal(failureText({ ok: false }, t), 'error.generic')
+})
+
+test('client dictionaries stay balanced across zh and en', async () => {
+  const source = await readFile(join(here, '..', 'client.js'), 'utf8')
+  const keys = (name) => {
+    const start = source.indexOf(`const ${name} = {`)
+    assert.ok(start >= 0, `${name} dictionary not found`)
+    const end = source.indexOf('\n    }', start)
+    return [...source.slice(start, end).matchAll(/^\s{6}'([^']+)':/gm)].map((match) => match[1])
+  }
+  const zh = keys('zh')
+  const en = keys('en')
+  assert.ok(zh.length > 50, 'unexpectedly small dictionary')
+  assert.deepEqual(
+    zh.filter((key) => !en.includes(key)),
+    [],
+    'keys missing in en',
+  )
+  assert.deepEqual(
+    en.filter((key) => !zh.includes(key)),
+    [],
+    'keys missing in zh',
+  )
 })
