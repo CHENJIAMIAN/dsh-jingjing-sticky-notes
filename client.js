@@ -91,7 +91,7 @@ window.__ModuleLoader__.load({
 .dsn-search input{flex:1;min-width:0;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;border-radius:8px;padding:6px 9px;transition:border-color 150ms ease}
 .dsn-search input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
 .dsn-scroll{flex:1;min-height:0;overflow-y:auto;padding:8px 8px 28px;scrollbar-gutter:stable}
-.dsn-row{position:relative;display:flex;align-items:stretch;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 8px;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:border-color 150ms ease,box-shadow 150ms ease,opacity 150ms ease}
+.dsn-row{position:relative;display:flex;align-items:stretch;min-height:96px;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 8px;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:border-color 150ms ease,box-shadow 150ms ease,opacity 150ms ease}
 .dsn-row:hover{border-color:var(--dsw-alias-border-l2);box-shadow:0 3px 10px rgba(0,0,0,.10)}
 .dsn-row:focus-within{border-color:var(--dsw-alias-border-l2)}
 .dsn-row[data-favorite]::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dsw-alias-brand-primary);border-radius:12px 0 0 12px;pointer-events:none;z-index:1}
@@ -102,12 +102,13 @@ window.__ModuleLoader__.load({
 .dsn-row-head{display:block;padding:10px 12px 2px}
 .dsn-title{display:block;font-size:13px;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.dsn-row-meta{display:flex;align-items:center;gap:6px;padding:2px 12px 10px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden}
+.dsn-row-meta{display:flex;align-items:center;gap:6px;margin-top:auto;padding:2px 12px 10px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;overflow:hidden}
 .dsn-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
 .dsn-chip[data-global]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Right action rail: a 2x2 grid, separated from the text by one dashed rule. */
-.dsn-row-rail{display:grid;grid-template-columns:repeat(2,34px);grid-template-rows:repeat(2,1fr);flex:none;align-self:stretch;border-left:1px dashed var(--dsw-alias-border-l2);border-radius:0 11px 11px 0;overflow:hidden}
+/* Right action rail: a 2x2 grid inset by the card padding on every side, so the
+   dashed rule has equal breathing room on both sides. */
+.dsn-row-rail{display:grid;grid-template-columns:repeat(2,34px);grid-template-rows:repeat(2,1fr);flex:none;align-self:stretch;padding:10px 12px;border-left:1px dashed var(--dsw-alias-border-l2);border-radius:0 11px 11px 0;overflow:hidden}
 .dsn-row-rail .dsn-iconbtn{width:100%;height:100%;min-height:0;border-radius:0;border:none}
 .dsn-row-rail .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsn-row-rail .dsn-iconbtn:focus-visible{outline-offset:-2px}
