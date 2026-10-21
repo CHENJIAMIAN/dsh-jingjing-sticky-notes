@@ -32,18 +32,29 @@ again, this panel is your scratch pad.
   into a single excerpt note.
 
 ### Notes panel (right sidebar)
-- Shows **this chat** by default; switch to **Global** to see every global note. Search and a note
-  count are included;
-- Each note is a capsule card: title + one-line snippet + chat/time on the left, a 2×2 action grid on
-  the right, separated by a single dashed vertical rule;
-- **Inline actions**: favorite, insert into chat, toggle visibility, delete (two clicks, resets
-  after 3 seconds) — no need to open the detail view;
-- **Favorites first**: favorited notes are pinned to the top; the rest follow by last modified time.
+- Three views: **Workspace** (the default — every note collected in the workspace, grouped by
+  source chat), **Chat** (only the current chat), and **Global** (across chats and workspaces).
+  Search and a note count are included;
+- In the workspace view, groups whose source chat is archived sink to the bottom and carry an
+  "Archived" chip; a banner above the list moves those notes to the recycle bin in one action;
+- Each note is a capsule card: title + one-line snippet + time on the left, a 2×2 action grid on the
+  right, separated by a single dashed vertical rule;
+- **Inline actions**: favorite, insert into chat, toggle visibility, move to the recycle bin (two
+  clicks, resets after 3 seconds) — no need to open the detail view;
+- **Favorites first**: favorited notes are pinned to the top inside their group; groups follow by
+  the newest note, with archived groups last;
+- A "Recycle bin" entry sits at the end of every list.
 
 ### Detail view
 - The action bar sits at the top: insert whole note, insert selection, insert as file, copy,
-  make global/private, delete;
+  make global / move to workspace, move to the recycle bin;
 - Edit title and body with a Markdown preview, and switch visibility.
+
+### Recycle bin
+- Deleting a note moves it into the recycle bin first: workspace notes go to that workspace's
+  `.trash/`, global notes to the global `.trash/`; each note can be restored;
+- "Empty" permanently deletes the notes in that bin. The confirmation states that files are really
+  removed and cannot be recovered — it is the only irreversible notes action.
 
 ### Inserting back into the conversation
 - **Insert whole note**: appends `## Title` plus the body to the composer;
@@ -67,12 +78,12 @@ again, this panel is your scratch pad.
 ┌─────────────────────────┊────────────┐
 │ Note title               ┊  ☆     ↓   │
 │ One-line snippet         ┊            │
-│ [Chat] 14:20            ┊  ⊕     🗑   │
+│ [Workspace] 14:20       ┊  ⊕     🗑   │
 └─────────────────────────┴────────────┘
-   ⊙ favorite (pin to top)
+   ⊙ favorite (pinned inside its group)
    ↓ insert into the composer
-   ⊕ switch global / chat-only
-   🗑 delete (two-step confirmation)
+   ⊕ switch global / workspace
+   🗑 move to the recycle bin (two-step confirmation)
 ```
 
 ## Installation
@@ -102,28 +113,44 @@ reload.
    right sidebar;
 2. Capture content: the reply icon / the floating button after selecting text / "Save whole chat" in
    the toolbar;
-3. Act directly in the list, or open a card to read the full Markdown;
-4. Insert it back with "Insert whole note", "Insert selection", or "Insert as file".
+3. Act directly in the list, or open a card to read the full Markdown; the workspace view groups
+   notes by source chat, and archived chats carry an "Archived" chip;
+4. Insert it back with "Insert whole note", "Insert selection", or "Insert as file";
+5. Deleted notes wait in the recycle bin at the end of the list — restore them one by one, or empty
+   the bin after the warning.
 
 ## Storage
 
-Notes live in two places:
+Notes live in two places, and each store has its own recycle bin:
 
 | Kind | Location | Notes |
 |---|---|---|
-| Chat note (`scope: session`) | `<session working directory>/.dsh-notes/` | Travels with the project; can be backed up or versioned |
+| Workspace note (`scope: session`) | `<session working directory>/.dsh-notes/` | Shared by the whole workspace; can be backed up or versioned |
 | Global note (`scope: global`) | `~/.dsh/sticky-notes/notes/` | Shared across every project |
+| Workspace recycle bin | `<session working directory>/.dsh-notes/.trash/` | Notes deleted in this workspace; visible only here |
+| Global recycle bin | `~/.dsh/sticky-notes/notes/.trash/` | Notes deleted globally; visible from every project |
 
 The session working directory comes from `SessionHeader.cwd` (the workspace path the session was
-created in). The list shows the current project's chat notes plus all global notes; toggling
-"global / chat" moves the file between the two directories.
+created in).
+
+- **Workspace view**: every chat note in the current workspace directory (no longer filtered by
+  `sessionId`), plus legacy chat notes stored in the global directory whose source chat resolves to
+  this workspace;
+- **Chat view**: narrows that set to the current `sessionId`;
+- **Global view**: only `scope: global` notes;
+- "Make global / Move to workspace" moves the file between the two directories. The archived mark
+  comes from the DSH workspace registry's `archivedSessionIds`; when that is unavailable the mark and
+  the bulk cleanup are hidden.
 
 ```
-D:\Projects\some-project\.dsh-notes\          # project notes (directory name configurable)
-└── 2026-10-21-issue-list-7f3a9c1d2e4b.md
+D:\Projects\some-project\.dsh-notes\          # workspace notes (directory name configurable)
+├── 2026-10-21-issue-list-7f3a9c1d2e4b.md
+└── .trash\                                  # workspace recycle bin
+    └── 2026-10-20-old-note-4c2e1a9b8d7f.md
 
 C:\Users\<you>\.dsh\sticky-notes\notes\        # global notes
-└── 2026-10-21-shared-conventions-9a1c2b3d4e5f.md
+├── 2026-10-21-shared-conventions-9a1c2b3d4e5f.md
+└── .trash\                                  # global recycle bin
 ```
 
 ### File format
@@ -138,19 +165,25 @@ sessionId: "session-...."
 sessionTitle: null
 createdAt: 1761000000000
 updatedAt: 1761000000000
+trashedAt: 1761000009999
 ---
 
 Body (the Markdown, saved as-is)
 ```
 
-- `scope`: `session` | `global`;
-- `favorite`: when `true` the note sorts first; older files without the key are read as `false`;
-- `sessionId`: the source chat, kept for provenance — retained even after switching to `global`;
+- `scope`: `session` (visible to the whole workspace) | `global` (visible everywhere);
+- `favorite`: when `true` the note sorts first inside its group; older files without the key are
+  read as `false`;
+- `sessionId`: the source chat, used for grouping and the archived mark — retained even after
+  switching to `global`;
+- `trashedAt`: present only on notes inside a recycle bin; removed again on restore;
 - Hand edits to frontmatter take effect on the next list refresh; broken files are skipped without
   hiding other notes;
-- Older versions also stored chat notes in the global directory. Those notes still show by
-  `sessionId`, and move to the project directory once edited or when visibility is toggled;
-- Consider adding `.dsh-notes/` to the project's `.gitignore` (skip that if you want notes versioned).
+- Older versions also stored workspace notes in the global directory. They still show up (visible
+  from their own chat, and merged into the workspace view once the workspace resolves), and move to
+  the project directory once edited or when visibility is toggled;
+- Consider adding `.dsh-notes/` to the project's `.gitignore` (skip that if you want notes versioned;
+  the recycle bin lives inside it too).
 
 ### Configuration
 
@@ -161,14 +194,14 @@ every key):
 - id: sticky-notes
   config:
     directory: ''                    # global note directory; empty = $DSH_HOME/sticky-notes/notes
-    projectDirectory: '.dsh-notes'   # chat note directory, relative to the session working dir
+    projectDirectory: '.dsh-notes'   # workspace note directory (scope: session), relative to the session working dir
     maxNotes: 2000
 ```
 
 | Key | Default | Description |
 |---|---|---|
 | `directory` | `''` | Global notes directory; empty means `$DSH_HOME/sticky-notes/notes` |
-| `projectDirectory` | `.dsh-notes` | Chat notes directory, relative to the session working directory |
+| `projectDirectory` | `.dsh-notes` | Workspace notes directory (`scope: session`), relative to the session working directory |
 | `maxNotes` | `2000` | Note count limit (checked on write) |
 
 An absolute `projectDirectory` or one containing `..` falls back to the default `.dsh-notes`.
@@ -180,14 +213,14 @@ here edits the running plugin.
 
 | File | Purpose |
 |---|---|
-| `index.js` | Host half: note service (9 Typert Remote endpoints), project directory resolution, session log capture |
-| `client.js` | Client half: sidebar panel, capture affordances, Markdown renderer and selection rebuild, insert-back, styles and copy |
-| `lib/store.js` | Markdown store: frontmatter parse/serialize, ordering, directory I/O |
+| `index.js` | Host half: note service (13 Typert Remote endpoints), project directory resolution, session log capture, recycle bin and archived cleanup |
+| `client.js` | Client half: sidebar panel (workspace groups / recycle bin), capture affordances, Markdown renderer and selection rebuild, insert-back, styles and copy |
+| `lib/store.js` | Markdown store: frontmatter parse/serialize, ordering, store and recycle bin I/O |
 | `lib/schemas.js` | Hand-written dependency-free request validators (no zod: a missing module there would take the Host down) |
 | `lib/typert.host.js` | Host-side Typert manifest |
 | `cordis.patch.yml` | Bundle declaration: plugin row and default config |
 | `locale/*.json` | Localized plugin metadata (title / description) |
-| `test/*.mjs` | Unit tests and client smoke tests |
+| `test/*.mjs` | Unit tests, Host/Client contract tests, and client smoke tests |
 
 - **Host half** (`index.js`, `lib/*.js`, `cordis.patch.yml`, `package.json`) requires a **full client
   restart**;
@@ -208,8 +241,16 @@ here edits the running plugin.
 
 - The notes panel expands in place inside the right sidebar; it is not a standalone floating window.
   The sidebar's own float/split buttons can drag the whole tab out;
-- Different chats in the same project share the on-disk `.dsh-notes/` directory, but the list filters
-  by `sessionId`, so chat notes stay private unless made global;
+- **Workspace view** shows notes from every chat in the same workspace — a visibility change from
+  older versions, where chats stayed private. Use **Chat** when you only want the current chat;
+- The archived mark and the workspace-view "Move to bin" bulk action only apply to the workspace
+  view; global notes are never part of that bulk action and are deleted one at a time;
+- The archived state comes from the DSH workspace registry. When it is unavailable (a host without
+  the workspace feature), the mark is hidden and the bulk cleanup reports an error;
+- Archiving is reversible at any time, but a note moved to the recycle bin is only recoverable until
+  the bin is emptied; "Empty" really unlinks the files and cannot be undone;
+- The workspace recycle bin lives in the project directory and is visible only there; the global
+  recycle bin is visible from every workspace;
 - If the session working directory is not writable (read-only mount, permissions), writes fail with
   an error; when the working directory is missing or the session header cannot be read, chat notes
   fall back to the global directory instead of being lost;

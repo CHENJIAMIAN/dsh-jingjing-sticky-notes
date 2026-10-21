@@ -265,3 +265,51 @@ test('client dictionaries stay balanced across zh and en', async () => {
     'keys missing in zh',
   )
 })
+
+test('groupWorkspaceNotes groups by source chat and sinks archived groups last', async () => {
+  const { plugin } = await loadClient()
+  const group = plugin.__internals.groupWorkspaceNotes
+  const notes = [
+    { id: 'a', sessionId: 's1', updatedAt: 10, scope: 'session' },
+    { id: 'b', sessionId: 's2', updatedAt: 30, scope: 'session' },
+    { id: 'c', sessionId: 's1', updatedAt: 20, scope: 'session' },
+    { id: 'd', sessionId: 's2', updatedAt: 40, scope: 'session' },
+    { id: 'e', sessionId: null, updatedAt: 5, scope: 'session' },
+  ]
+  const groups = group(notes, ['s2'])
+  // Active groups by newest note, then the archived one, then the unfiled one.
+  assert.deepEqual(Array.from(groups, (entry) => entry.sessionId), ['s1', null, 's2'])
+  assert.deepEqual(Array.from(groups[0].notes, (note) => note.id), ['a', 'c'])
+  assert.deepEqual(Array.from(groups[2].notes, (note) => note.id), ['b', 'd'])
+  assert.equal(groups[2].archived, true)
+  assert.equal(groups[0].archived, false)
+
+  // Without archive data every group stays active and sorts by newest note.
+  const plain = group(notes, null)
+  assert.deepEqual(Array.from(plain, (entry) => entry.sessionId), ['s2', 's1', null])
+})
+
+test('archivedNoteCount only counts workspace notes from archived chats', async () => {
+  const { plugin } = await loadClient()
+  const count = plugin.__internals.archivedNoteCount
+  const notes = [
+    { id: 'a', scope: 'session', sessionId: 's1' },
+    { id: 'b', scope: 'session', sessionId: 's2' },
+    { id: 'c', scope: 'global', sessionId: 's2' },
+    { id: 'd', scope: 'session', sessionId: null },
+  ]
+  assert.equal(count(notes, ['s2']), 1)
+  assert.equal(count(notes, []), 0)
+  assert.equal(count(notes, null), 0)
+})
+
+test('sessionDisplayTitle reads the catalog display title', async () => {
+  const { plugin } = await loadClient()
+  const title = plugin.__internals.sessionDisplayTitle
+  const catalog = { byId: { s1: { displayTitle: '会话标题' }, s2: { displayTitle: '' } } }
+  assert.equal(title(catalog, 's1'), '会话标题')
+  assert.equal(title(catalog, 's2'), null)
+  assert.equal(title(catalog, 'missing'), null)
+  assert.equal(title(null, 's1'), null)
+  assert.equal(title(catalog, null), null)
+})

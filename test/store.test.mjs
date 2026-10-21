@@ -8,19 +8,24 @@ import test from 'node:test'
 import {
   clampTitle,
   defaultRoot,
+  emptyTrash,
   findNoteIn,
   isNoteId,
+  moveNoteToTrash,
   newNoteId,
   parseNote,
   projectRootFor,
   readAllNotes,
   readNotesFrom,
+  readTrashedNotes,
   removeNote,
+  restoreTrashedNote,
   sanitizeProjectDirectory,
   serializeNote,
   snippetOf,
   titleFromBody,
   toSummary,
+  trashRootFor,
   writeNote,
 } from '../lib/store.js'
 
@@ -174,4 +179,57 @@ test('ids, titles, and snippets stay bounded', () => {
   assert.equal(clampTitle(''), '便签')
   assert.equal(snippetOf('# 标题\n\n- 第一项\n- 第二项'), '标题 第一项 第二项')
   assert.equal(toSummary(makeNote({ body: 'x'.repeat(400) })).snippet.length > 0, true)
+})
+
+test('moveNoteToTrash hides the note and keeps a trashedAt stamp', async (t) => {
+  const root = await tempRoot(t)
+  const note = makeNote()
+  const path = await writeNote(root, note)
+
+  const trashedPath = await moveNoteToTrash({ ...note, path }, 1761000000000)
+  assert.notEqual(trashedPath, path)
+  await assert.rejects(access(path), /ENOENT/)
+  assert.equal((await readAllNotes(root)).length, 0)
+  assert.equal(toSummary({ ...note, trashedAt: 1761000000000 }).trashedAt, 1761000000000)
+
+  const trashed = await readTrashedNotes(root)
+  assert.equal(trashed.length, 1)
+  assert.equal(trashed[0].id, note.id)
+  assert.equal(trashed[0].trashedAt, 1761000000000)
+  assert.equal(trashed[0].path, trashedPath)
+  assert.equal(trashedPath.startsWith(trashRootFor(root)), true)
+})
+
+test('restoreTrashedNote returns the note and drops trashedAt', async (t) => {
+  const root = await tempRoot(t)
+  const note = makeNote()
+  const path = await writeNote(root, note)
+  await moveNoteToTrash({ ...note, path })
+
+  const [trashed] = await readTrashedNotes(root)
+  const restoredPath = await restoreTrashedNote(root, trashed)
+  assert.notEqual(restoredPath, trashed.path)
+  const restored = await readAllNotes(root)
+  assert.equal(restored.length, 1)
+  assert.equal(restored[0].id, note.id)
+  assert.equal(restored[0].trashedAt, null)
+  assert.equal((await readTrashedNotes(root)).length, 0)
+})
+
+test('emptyTrash unlinks every note file in the bin and reports counts', async (t) => {
+  const root = await tempRoot(t)
+  const note = makeNote()
+  const path = await writeNote(root, note)
+  await moveNoteToTrash({ ...note, path })
+  // A hand-copied file the parser would skip must still be cleared.
+  await writeFile(join(trashRootFor(root), 'broken.md'), 'not a note', 'utf8')
+  await writeFile(join(trashRootFor(root), 'keep.tmp'), 'temporary', 'utf8')
+
+  const result = await emptyTrash(root)
+  assert.deepEqual(result, { removed: 2, failed: 0 })
+  assert.equal((await readTrashedNotes(root)).length, 0)
+  // The bin directory itself stays for the next deletion, and files that are
+  // not note Markdown are left alone.
+  await access(trashRootFor(root))
+  await access(join(trashRootFor(root), 'keep.tmp'))
 })

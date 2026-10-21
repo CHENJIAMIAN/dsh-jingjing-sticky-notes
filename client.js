@@ -1,9 +1,10 @@
 // dsh-sticky-notes — browser half.
 //
-// A right-Sidebar tab that lists the notes of the current Session beside every
-// global one, a per-reply capture action, a header shortcut, and a floating
-// "save selection" button. Notes are Markdown files owned by the Host half;
-// this module only renders and edits them.
+// A right-Sidebar tab that lists the notes of the current workspace (grouped by
+// source Session, global notes on their own surface), a per-reply capture
+// action, a header shortcut, and a floating "save selection" button. Notes are
+// Markdown files owned by the Host half; this module only renders and edits
+// them, and hands deletes to the recycle bin instead of unlinking.
 //
 // Plain JavaScript on purpose: the file is served to the page as-is, so there
 // is no build step to keep in sync with the Host half.
@@ -49,6 +50,10 @@ window.__ModuleLoader__.load({
       ['create', 'CreateRequest', 'NoteResult'],
       ['update', 'UpdateRequest', 'NoteResult'],
       ['removeNote', 'RemoveRequest', 'RemoveResult'],
+      ['listTrash', 'ListTrashRequest', 'TrashListResult'],
+      ['restoreNote', 'RestoreRequest', 'NoteResult'],
+      ['emptyTrash', 'EmptyTrashRequest', 'PurgeResult'],
+      ['trashArchived', 'TrashArchivedRequest', 'PurgeResult'],
       ['setFavorite', 'SetFavoriteRequest', 'NoteResult'],
       ['setScope', 'SetScopeRequest', 'NoteResult'],
       ['captureMessage', 'CaptureMessageRequest', 'NoteResult'],
@@ -73,7 +78,7 @@ window.__ModuleLoader__.load({
     // Theme tokens only; the sticky-note accent is the brand token.
 
     const CSS = `
-.dsn-pane{height:100%;min-height:0;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:13px;font-family:inherit}
+.dsn-pane{position:relative;height:100%;min-height:0;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:13px;font-family:inherit}
 .dsn-bar{display:flex;align-items:center;gap:4px;padding:8px 8px 8px 10px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
 .dsn-seg{appearance:none;border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;padding:4px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:background 150ms ease,color 150ms ease,border-color 150ms ease}
 .dsn-seg:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
@@ -175,6 +180,38 @@ window.__ModuleLoader__.load({
 .dsn-floating button:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsn-floating-note{color:var(--dsw-alias-label-secondary);font-size:11px;padding:0 4px}
 .dsn-action:focus-visible,.dsn-open:focus-visible,.dsn-floating button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+/* Workspace grouping: one group per source Session, archived groups last. */
+.dsn-group{margin:0 0 4px}
+.dsn-group-head{display:flex;align-items:center;gap:6px;min-width:0;padding:3px 6px 6px;font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.dsn-group-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.dsn-group-count{flex:none;font-variant-numeric:tabular-nums}
+.dsn-group-spacer{flex:1}
+.dsn-chip[data-archived]{border-color:var(--dsw-alias-state-warning-primary,var(--dsw-alias-label-secondary));color:var(--dsw-alias-state-warning-primary,var(--dsw-alias-label-secondary))}
+/* Archived cleanup banner sits above the list, inside the workspace view. */
+.dsn-banner{display:flex;align-items:center;gap:8px;margin:0 10px 8px;padding:7px 9px;border:1px dashed var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary);font-size:11.5px;line-height:1.5}
+.dsn-banner-text{flex:1;min-width:0}
+.dsn-banner .dsn-btn{flex:none;min-height:26px;line-height:18px;font-size:12px;padding:2px 9px}
+/* Recycle bin entry point at the end of every list. */
+.dsn-list-foot{display:flex;justify-content:center;padding:6px 0 4px}
+.dsn-footbtn{appearance:none;border:none;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;cursor:pointer}
+.dsn-footbtn:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+.dsn-footbtn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+/* Recycle bin page. */
+.dsn-trash-section{margin-bottom:12px}
+.dsn-trash-section-head{display:flex;align-items:center;gap:6px;padding:2px 6px 6px;font-size:11.5px;color:var(--dsw-alias-label-secondary)}
+.dsn-trash-section-title{font-size:12px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.dsn-trash-row{display:flex;align-items:stretch;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 8px;overflow:hidden}
+.dsn-trash-main{flex:1;min-width:0;padding:9px 12px}
+.dsn-trash-name{font-size:13px;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsn-trash-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.dsn-trash-meta{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px;color:var(--dsw-alias-label-secondary)}
+.dsn-trash-actions{display:flex;align-items:center;padding:0 8px;border-left:1px dashed var(--dsw-alias-border-l2)}
+/* Destructive confirmation dialog, absolute inside the pane. */
+.dsn-modal-backdrop{position:absolute;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:18px;background:rgba(0,0,0,.34)}
+.dsn-modal{width:100%;max-width:320px;background:var(--dsw-alias-bg-overlay);border:1px solid var(--dsw-alias-border-l2);border-radius:12px;box-shadow:0 12px 36px rgba(0,0,0,.28);padding:14px;color:var(--dsw-alias-label-primary);font-size:13px}
+.dsn-modal-title{margin:0 0 8px;font-size:14px;font-weight:600;line-height:1.4}
+.dsn-modal-text{margin:0;white-space:pre-line;line-height:1.7;color:var(--dsw-alias-label-secondary)}
+.dsn-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 @media (prefers-reduced-motion: reduce){.dsn-pane,.dsn-pane *,.dsn-floating,.dsn-floating *{transition:none !important;animation:none !important}}
 `
 
@@ -194,23 +231,46 @@ window.__ModuleLoader__.load({
     const zh = {
       'tab.title': '便签',
       'tab.description': '收藏对话内容为本地 Markdown 便签',
-      'filter.session': '当前会话',
+      'filter.session': '会话',
+      'filter.workspace': '工作区',
       'filter.global': '全局',
       'filter.emptySession': '这个会话还没有便签。\n在回复上点便签图标，或选中文字后点「存为便签」。',
+      'filter.emptyWorkspace': '这个工作区还没有便签。\n在回复上点便签图标，或选中文字后点「存为便签」。',
       'filter.emptyGlobal': '还没有全局便签。\n打开一条便签，点「设为全局」即可。',
       'filter.noResults': '没有匹配的便签',
+      'group.archived': '已归档',
+      'group.unknownSession': '未命名会话',
+      'group.noSession': '无来源会话',
+      'archive.banner': '已归档会话的便签',
+      'archive.bannerCount': '{sessions} 个会话 · {count} 条',
+      'archive.moveToTrash': '移入回收站',
+      'archive.confirmTitle': '清理已归档便签',
+      'archive.confirmText': '将 {sessions} 个已归档会话的 {count} 条便签移入回收站？\n可以在回收站里恢复，也可以稍后永久清空。',
       'list.search': '搜索便签',
       'list.new': '新建便签',
       'list.captureSession': '收藏整段对话',
       'list.refresh': '刷新',
       'list.count': '便签数量',
       'row.global': '全局',
-      'row.session': '会话',
+      'row.session': '工作区',
       'row.favorite': '收藏',
       'row.unfavorite': '取消收藏',
       'row.insert': '插入会话',
       'row.makeGlobal': '设为全局',
-      'row.makeSession': '设为会话',
+      'row.makeSession': '设为工作区',
+      'trash.open': '回收站',
+      'trash.title': '回收站',
+      'trash.workspace': '工作区回收站',
+      'trash.global': '全局回收站',
+      'trash.count': '{count} 条',
+      'trash.emptySection': '清空',
+      'trash.restore': '恢复',
+      'trash.emptyPage': '回收站是空的。\n删除的便签会先移动到这里。',
+      'trash.confirmTitle': '永久清空回收站',
+      'trash.confirmText': '确定永久清空{label}中的 {count} 条便签？\n此操作会真实删除文件，无法找回。',
+      'trash.confirmAgain': '确认永久清空',
+      'trash.labelWorkspace': '工作区回收站',
+      'trash.labelGlobal': '全局回收站',
       'detail.back': '返回',
       'detail.insert': '插入全文',
       'detail.insertSelection': '插入选中',
@@ -218,9 +278,9 @@ window.__ModuleLoader__.load({
       'detail.copy': '复制',
       'detail.edit': '编辑',
       'detail.makeGlobal': '设为全局',
-      'detail.makeSession': '设为会话',
-      'detail.delete': '删除',
-      'detail.deleteAgain': '确认删除',
+      'detail.makeSession': '设为工作区',
+      'detail.delete': '移到回收站',
+      'detail.deleteAgain': '确认移入回收站',
       'editor.newTitle': '新建便签',
       'editor.editTitle': '编辑便签',
       'editor.title': '标题',
@@ -233,13 +293,18 @@ window.__ModuleLoader__.load({
       'status.inserted': '已插入输入框',
       'status.copied': '已复制到剪贴板',
       'status.saved': '已保存',
-      'status.deleted': '已删除',
+      'status.deleted': '已移入回收站',
       'status.captured': '已收藏为便签',
       'status.saving': '保存中…',
       'status.favorited': '已收藏，已排到最前',
       'status.unfavorited': '已取消收藏',
       'status.scopeGlobal': '已设为全局',
-      'status.scopeSession': '已设为会话便签',
+      'status.scopeSession': '已设为工作区便签',
+      'status.restored': '已恢复便签',
+      'status.purged': '已永久清空 {count} 条便签',
+      'status.trashedArchived': '已移入回收站 {count} 条便签',
+      'status.trashFailed': '已移入回收站 {trashed} 条，{failed} 条失败',
+      'status.purgeFailed': '已永久清空 {removed} 条，{failed} 条失败',
       'capture.message': '收藏这条回复为便签',
       'capture.selection': '存为便签',
       'capture.needSession': '请先打开一个会话',
@@ -257,7 +322,14 @@ window.__ModuleLoader__.load({
       'error.code.write-failed': '写入便签失败',
       'error.code.read-failed': '读取便签失败',
       'error.code.list-failed': '加载便签失败',
-      'error.code.remove-failed': '删除便签失败',
+      'error.code.trash-failed': '移入回收站失败',
+      'error.code.list-trash-failed': '读取回收站失败',
+      'error.code.restore-failed': '恢复便签失败',
+      'error.code.purge-failed': '清空回收站失败',
+      'error.code.trash-archive-failed': '清理已归档便签失败',
+      'error.code.no-workspace': '当前会话没有可识别的工作区',
+      'error.code.archive-unavailable': '这个环境没有会话归档信息',
+      'error.code.exists': '同一位置已有相同 ID 的便签，无法恢复',
       'error.code.favorite-failed': '更新收藏状态失败',
       'error.code.scope-failed': '切换可见性失败',
       'error.code.session-not-found': '找不到这个会话的日志',
@@ -271,23 +343,46 @@ window.__ModuleLoader__.load({
     const en = {
       'tab.title': 'Sticky Notes',
       'tab.description': 'Collect conversation content as local Markdown notes',
-      'filter.session': 'This chat',
+      'filter.session': 'Chat',
+      'filter.workspace': 'Workspace',
       'filter.global': 'Global',
       'filter.emptySession': 'No notes in this chat yet.\nUse the note icon on a reply, or select text and click "Pin note".',
+      'filter.emptyWorkspace': 'No notes in this workspace yet.\nUse the note icon on a reply, or select text and click "Pin note".',
       'filter.emptyGlobal': 'No global notes yet.\nOpen a note and choose "Make global".',
       'filter.noResults': 'No matching notes',
+      'group.archived': 'Archived',
+      'group.unknownSession': 'Untitled chat',
+      'group.noSession': 'No source chat',
+      'archive.banner': 'Notes from archived chats',
+      'archive.bannerCount': '{sessions} chats · {count} notes',
+      'archive.moveToTrash': 'Move to bin',
+      'archive.confirmTitle': 'Clean up archived notes',
+      'archive.confirmText': 'Move {count} notes from {sessions} archived chats into the recycle bin?\nYou can restore them from the bin, or empty it later.',
       'list.search': 'Search notes',
       'list.new': 'New note',
       'list.captureSession': 'Save whole chat',
       'list.refresh': 'Refresh',
       'list.count': 'Number of notes',
       'row.global': 'Global',
-      'row.session': 'Chat',
+      'row.session': 'Workspace',
       'row.favorite': 'Favorite',
       'row.unfavorite': 'Unfavorite',
       'row.insert': 'Insert into chat',
       'row.makeGlobal': 'Make global',
-      'row.makeSession': 'Make private',
+      'row.makeSession': 'Move to workspace',
+      'trash.open': 'Recycle bin',
+      'trash.title': 'Recycle bin',
+      'trash.workspace': 'Workspace bin',
+      'trash.global': 'Global bin',
+      'trash.count': '{count} notes',
+      'trash.emptySection': 'Empty',
+      'trash.restore': 'Restore',
+      'trash.emptyPage': 'The recycle bin is empty.\nDeleted notes land here first.',
+      'trash.confirmTitle': 'Permanently empty the recycle bin',
+      'trash.confirmText': 'Permanently delete the {count} notes in the {label}?\nThis deletes the files for real and cannot be undone.',
+      'trash.confirmAgain': 'Delete permanently',
+      'trash.labelWorkspace': 'workspace bin',
+      'trash.labelGlobal': 'global bin',
       'detail.back': 'Back',
       'detail.insert': 'Insert',
       'detail.insertSelection': 'Insert selection',
@@ -295,9 +390,9 @@ window.__ModuleLoader__.load({
       'detail.copy': 'Copy',
       'detail.edit': 'Edit',
       'detail.makeGlobal': 'Make global',
-      'detail.makeSession': 'Make private',
-      'detail.delete': 'Delete',
-      'detail.deleteAgain': 'Confirm delete',
+      'detail.makeSession': 'Move to workspace',
+      'detail.delete': 'Move to bin',
+      'detail.deleteAgain': 'Confirm move to bin',
       'editor.newTitle': 'New note',
       'editor.editTitle': 'Edit note',
       'editor.title': 'Title',
@@ -310,13 +405,18 @@ window.__ModuleLoader__.load({
       'status.inserted': 'Inserted into the composer',
       'status.copied': 'Copied to clipboard',
       'status.saved': 'Saved',
-      'status.deleted': 'Deleted',
+      'status.deleted': 'Moved to the recycle bin',
       'status.captured': 'Saved as a note',
       'status.saving': 'Saving…',
       'status.favorited': 'Favorited — moved to the top',
       'status.unfavorited': 'Removed from favorites',
       'status.scopeGlobal': 'Now visible everywhere',
-      'status.scopeSession': 'Now chat-only',
+      'status.scopeSession': 'Now workspace-only',
+      'status.restored': 'Note restored',
+      'status.purged': 'Permanently deleted {count} notes',
+      'status.trashedArchived': 'Moved {count} notes to the recycle bin',
+      'status.trashFailed': 'Moved {trashed} notes to the bin, {failed} failed',
+      'status.purgeFailed': 'Deleted {removed} notes, {failed} failed',
       'capture.message': 'Save this reply as a note',
       'capture.selection': 'Pin note',
       'capture.needSession': 'Open a chat first',
@@ -334,7 +434,14 @@ window.__ModuleLoader__.load({
       'error.code.write-failed': 'Could not write the note',
       'error.code.read-failed': 'Could not read the note',
       'error.code.list-failed': 'Could not load notes',
-      'error.code.remove-failed': 'Could not delete the note',
+      'error.code.trash-failed': 'Could not move the note to the recycle bin',
+      'error.code.list-trash-failed': 'Could not load the recycle bin',
+      'error.code.restore-failed': 'Could not restore the note',
+      'error.code.purge-failed': 'Could not empty the recycle bin',
+      'error.code.trash-archive-failed': 'Could not clean up archived notes',
+      'error.code.no-workspace': 'This chat has no identifiable workspace',
+      'error.code.archive-unavailable': 'Session archive state is unavailable in this environment',
+      'error.code.exists': 'A note with the same id already exists there; cannot restore',
       'error.code.favorite-failed': 'Could not update the favorite state',
       'error.code.scope-failed': 'Could not change the visibility',
       'error.code.session-not-found': 'This chat log could not be found',
@@ -1022,6 +1129,124 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** Archived Session ids from the Workspace model, or null when unavailable. */
+    function archivedSessionsOf(ctx) {
+      try {
+        const model = ctx.get?.('workspaces')?.list
+        const snapshot = model?.getSnapshot?.()
+        return Array.isArray(snapshot?.archivedSessionIds) ? snapshot.archivedSessionIds : null
+      } catch {
+        return null
+      }
+    }
+
+    /**
+     * Live archived-Session ids. The Workspace model is optional: an
+     * environment without it reports `null` and the archive affordances hide.
+     */
+    function useArchivedSessions(ctx) {
+      const [ids, setIds] = useState(() => archivedSessionsOf(ctx))
+      useEffect(() => {
+        let alive = true
+        const sync = () => {
+          if (alive) setIds(archivedSessionsOf(ctx))
+        }
+        sync()
+        let unsubscribe = () => {}
+        try {
+          const model = ctx.get?.('workspaces')?.list
+          if (typeof model?.subscribe === 'function') unsubscribe = model.subscribe(sync)
+        } catch {
+          // No Workspace model: keep the unavailable state.
+        }
+        return () => {
+          alive = false
+          unsubscribe()
+        }
+      }, [ctx])
+      return ids
+    }
+
+    /** Session catalog snapshot (`sessions` service), or null when unavailable. */
+    function sessionsCatalogOf(ctx) {
+      try {
+        const store = ctx.get?.('sessions')?.list
+        return store?.getSnapshot?.() ?? null
+      } catch {
+        return null
+      }
+    }
+
+    /** Live Session catalog; group headers read display titles from it. */
+    function useSessionsCatalog(ctx) {
+      const [catalog, setCatalog] = useState(() => sessionsCatalogOf(ctx))
+      useEffect(() => {
+        let alive = true
+        const sync = () => {
+          if (alive) setCatalog(sessionsCatalogOf(ctx))
+        }
+        sync()
+        let unsubscribe = () => {}
+        try {
+          const store = ctx.get?.('sessions')?.list
+          if (typeof store?.subscribe === 'function') unsubscribe = store.subscribe(sync)
+        } catch {
+          // No Session catalog: group headers fall back to generic labels.
+        }
+        return () => {
+          alive = false
+          unsubscribe()
+        }
+      }, [ctx])
+      return catalog
+    }
+
+    /** Display title of one Session from the Client catalog, when known. */
+    function sessionDisplayTitle(catalog, sessionId) {
+      if (sessionId === null || catalog === null) return null
+      const row = catalog?.byId?.[sessionId]
+      return typeof row?.displayTitle === 'string' && row.displayTitle.length > 0 ? row.displayTitle : null
+    }
+
+    /**
+     * Group workspace notes by source Session for the grouped list. Archived
+     * Sessions sink below active ones; each group keeps the Host list order and
+     * is ordered by its newest note.
+     */
+    function groupWorkspaceNotes(notes, archivedSessionIds) {
+      const archived =
+        archivedSessionIds instanceof Set ? archivedSessionIds : new Set(Array.isArray(archivedSessionIds) ? archivedSessionIds : [])
+      const groups = new Map()
+      for (const note of notes) {
+        const key = note.sessionId ?? ''
+        let group = groups.get(key)
+        if (group === undefined) {
+          group = {
+            sessionId: note.sessionId ?? null,
+            archived: note.sessionId !== null && archived.has(note.sessionId),
+            latest: 0,
+            notes: [],
+          }
+          groups.set(key, group)
+        }
+        group.notes.push(note)
+        group.latest = Math.max(group.latest, note.updatedAt ?? 0)
+      }
+      const list = [...groups.values()]
+      list.sort((left, right) => {
+        if (left.archived !== right.archived) return left.archived ? 1 : -1
+        return right.latest - left.latest
+      })
+      return list
+    }
+
+    /** Count of workspace notes whose source Session is archived. */
+    function archivedNoteCount(notes, archivedSessionIds) {
+      if (!Array.isArray(archivedSessionIds) || archivedSessionIds.length === 0) return 0
+      const archived = new Set(archivedSessionIds)
+      return notes.filter((note) => note.scope === 'session' && note.sessionId !== null && archived.has(note.sessionId)).length
+    }
+
     /** Append text to the current composer draft through the scoped input event. */
     function insertIntoComposer(ctx, sessionId, text) {
       const scope = ctx.sessions?.scope?.(sessionId)
@@ -1044,7 +1269,19 @@ window.__ModuleLoader__.load({
 
     // ── store ──────────────────────────────────────────────────────────────
 
-    const EMPTY_STATE = { status: 'cold', items: [], error: null, sessionId: null, dirty: 0, loadedDirty: 0 }
+    const EMPTY_STATE = {
+      status: 'cold',
+      items: [],
+      error: null,
+      sessionId: null,
+      dirty: 0,
+      loadedDirty: 0,
+      trashStatus: 'cold',
+      trashItems: [],
+      trashError: null,
+      trashSessionId: null,
+      trashLoadedDirty: 0,
+    }
 
     /** One in-memory view over the Host note endpoints. */
     function createStore(remote) {
@@ -1102,6 +1339,39 @@ window.__ModuleLoader__.load({
           const carried = await remote.read({ id, sessionId: sessionId ?? null })
           if (!carried.ok) return { ok: false, message: carried.error?.message ?? 'read failed' }
           return carried.value
+        },
+        /** Load the workspace and global recycle bins. */
+        async loadTrash(sessionId, force = false) {
+          if (
+            !force &&
+            state.trashStatus === 'ready' &&
+            state.trashSessionId === sessionId &&
+            state.trashLoadedDirty === state.dirty
+          ) {
+            return
+          }
+          const startedDirty = state.dirty
+          set({
+            trashStatus: state.trashItems.length > 0 ? 'refreshing' : 'loading',
+            trashSessionId: sessionId,
+            trashError: null,
+          })
+          try {
+            const carried = await remote.listTrash({ sessionId })
+            if (state.trashSessionId !== sessionId) return
+            if (!carried.ok) {
+              set({ trashStatus: 'error', trashError: carried.error?.message ?? 'list trash failed' })
+              return
+            }
+            const result = carried.value
+            if (!result.ok) {
+              set({ trashStatus: 'error', trashError: result.error?.message ?? 'list trash failed' })
+              return
+            }
+            set({ trashStatus: 'ready', trashItems: result.value.notes, trashError: null, trashLoadedDirty: startedDirty })
+          } catch (error) {
+            set({ trashStatus: 'error', trashError: error instanceof Error ? error.message : String(error) })
+          }
         },
         async create(payload) {
           try {
@@ -1175,6 +1445,39 @@ window.__ModuleLoader__.load({
             return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
           }
         },
+        /** Restore one note out of the recycle bin. */
+        async restore(id, sessionId) {
+          try {
+            const carried = await remote.restoreNote({ id, sessionId: sessionId ?? null })
+            if (!carried.ok) return { ok: false, error: { code: 'transport', message: carried.error?.message ?? 'failed' } }
+            if (carried.value.ok) store.markDirty()
+            return carried.value
+          } catch (error) {
+            return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
+          }
+        },
+        /** Permanently empty one recycle bin (or both). */
+        async emptyTrash(sessionId, origin) {
+          try {
+            const carried = await remote.emptyTrash({ sessionId: sessionId ?? null, origin })
+            if (!carried.ok) return { ok: false, error: { code: 'transport', message: carried.error?.message ?? 'failed' } }
+            if (carried.value.ok) store.markDirty()
+            return carried.value
+          } catch (error) {
+            return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
+          }
+        },
+        /** Move every note of an archived Session in this workspace to the bin. */
+        async trashArchived(sessionId) {
+          try {
+            const carried = await remote.trashArchived({ sessionId: sessionId ?? null })
+            if (!carried.ok) return { ok: false, error: { code: 'transport', message: carried.error?.message ?? 'failed' } }
+            if (carried.value.ok) store.markDirty()
+            return carried.value
+          } catch (error) {
+            return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
+          }
+        },
         dispose() {
           listeners.clear()
         },
@@ -1220,6 +1523,8 @@ window.__ModuleLoader__.load({
     const IconChat = (props) => icon(['M4 5h16v11H9l-4 3V5Z'], props?.size ?? 16)
     const IconStar = (props) =>
       icon(['M12 3.6l2.55 5.17 5.7.83-4.13 4.03.98 5.68L12 16.62l-5.1 2.69.98-5.68L3.75 9.6l5.7-.83L12 3.6Z'], props?.size ?? 16, props?.filled === true)
+    const IconUndo = (props) => icon(['M9 14 4 9l5-5', 'M4 9h10a6 6 0 0 1 0 12h-1'], props?.size ?? 16)
+    const IconArchive = (props) => icon(['M4 5h16v4H4z', 'M5.5 9v10h13V9', 'M9.5 13h5'], props?.size ?? 16)
 
     // ── list ───────────────────────────────────────────────────────────────
 
@@ -1228,7 +1533,7 @@ window.__ModuleLoader__.load({
      * actions (favorite / insert / visibility / delete), so the list never
      * needs the detail view to do the common operations.
      */
-    function NoteRow({ note, t, busy, confirming, onOpen, onInsert, onFavorite, onScope, onDelete }) {
+    function NoteRow({ note, t, busy, confirming, chip = true, onOpen, onInsert, onFavorite, onScope, onDelete }) {
       const favoriteLabel = note.favorite ? t('row.unfavorite') : t('row.favorite')
       const scopeLabel = note.scope === 'global' ? t('row.makeSession') : t('row.makeGlobal')
       const deleteLabel = confirming ? t('detail.deleteAgain') : t('detail.delete')
@@ -1251,11 +1556,13 @@ window.__ModuleLoader__.load({
           h(
             'span',
             { className: 'dsn-row-meta' },
-            h(
-              'span',
-              { className: 'dsn-chip', 'data-global': note.scope === 'global' || undefined },
-              note.scope === 'global' ? t('row.global') : t('row.session'),
-            ),
+            chip
+              ? h(
+                  'span',
+                  { className: 'dsn-chip', 'data-global': note.scope === 'global' || undefined },
+                  note.scope === 'global' ? t('row.global') : t('row.session'),
+                )
+              : null,
             h('span', { className: 'dsn-time' }, formatTime(note.updatedAt)),
           ),
         ),
@@ -1317,11 +1624,224 @@ window.__ModuleLoader__.load({
       )
     }
 
+    /** One destructive confirmation rendered inside the pane. */
+    function ConfirmDialog({ t, title, text, confirmLabel, danger, busy, onConfirm, onCancel }) {
+      return h(
+        'div',
+        { className: 'dsn-modal-backdrop', 'data-dsn-ignore-capture': true },
+        h(
+          'div',
+          { className: 'dsn-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+          h('h2', { className: 'dsn-modal-title' }, title),
+          h('p', { className: 'dsn-modal-text' }, text),
+          h(
+            'div',
+            { className: 'dsn-modal-actions' },
+            h('button', { type: 'button', className: 'dsn-btn', disabled: busy, onClick: onCancel, autoFocus: true }, t('editor.cancel')),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dsn-btn',
+                'data-danger': danger || undefined,
+                disabled: busy,
+                onClick: onConfirm,
+              },
+              confirmLabel,
+            ),
+          ),
+        ),
+      )
+    }
+
+    /** One trashed note: title, snippet, delete time, and a restore action. */
+    function TrashRow({ note, t, busy, onRestore }) {
+      const label = t('trash.restore')
+      return h(
+        'div',
+        { className: 'dsn-trash-row', 'data-busy': busy || undefined },
+        h(
+          'div',
+          { className: 'dsn-trash-main' },
+          h('div', { className: 'dsn-trash-name', title: note.title }, note.title),
+          note.snippet.length > 0 ? h('div', { className: 'dsn-trash-snippet' }, note.snippet) : null,
+          h(
+            'div',
+            { className: 'dsn-trash-meta' },
+            h('span', { className: 'dsn-chip' }, note.origin === 'global' ? t('row.global') : t('row.session')),
+            h('span', null, formatTime(note.trashedAt ?? note.updatedAt)),
+          ),
+        ),
+        h(
+          'div',
+          { className: 'dsn-trash-actions' },
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn',
+              title: label,
+              'aria-label': label,
+              disabled: busy,
+              onClick: () => onRestore(note),
+            },
+            h(IconUndo, { size: 18 }),
+          ),
+        ),
+      )
+    }
+
+    /** Recycle bin view: one section per store, restore, or empty with a warning. */
+    function TrashView({ sessionId, store, t, onBack }) {
+      const view = useStore(store)
+      const [busyId, setBusyId] = useState(null)
+      const [emptyOrigin, setEmptyOrigin] = useState(null)
+      const [busy, setBusy] = useState(false)
+      const [status, setStatus] = useState(null)
+
+      useEffect(() => {
+        void store.loadTrash(sessionId ?? null)
+      }, [sessionId, view.dirty])
+
+      useEffect(() => {
+        if (status === null) return undefined
+        const timer = setTimeout(() => setStatus(null), 2600)
+        return () => clearTimeout(timer)
+      }, [status])
+
+      const notify = (text, error = false) => setStatus({ text, error })
+      const originLabel = (origin) => (origin === 'global' ? t('trash.labelGlobal') : t('trash.labelWorkspace'))
+      const sections = useMemo(
+        () =>
+          ['workspace', 'global']
+            .map((origin) => ({ origin, notes: view.trashItems.filter((note) => note.origin === origin) }))
+            .filter((section) => section.notes.length > 0),
+        [view.trashItems],
+      )
+      const pending = emptyOrigin === null ? null : sections.find((section) => section.origin === emptyOrigin) ?? null
+
+      const restore = async (note) => {
+        setBusyId(note.id)
+        const result = await store.restore(note.id, sessionId)
+        setBusyId(null)
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        notify(t('status.restored'))
+      }
+
+      const empty = async () => {
+        if (pending === null) return
+        setBusy(true)
+        const result = await store.emptyTrash(sessionId, pending.origin)
+        setBusy(false)
+        setEmptyOrigin(null)
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        const removed = result.value?.removed ?? 0
+        const failed = result.value?.failed ?? 0
+        notify(
+          failed > 0 ? t('status.purgeFailed', { removed, failed }) : t('status.purged', { count: removed }),
+          failed > 0,
+        )
+      }
+
+      return h(
+        'div',
+        { className: 'dsn-pane', 'data-dsn-ignore-capture': true },
+        h(
+          'div',
+          { className: 'dsn-detail-head' },
+          h(
+            'button',
+            { type: 'button', className: 'dsn-iconbtn', onClick: onBack, title: t('detail.back'), 'aria-label': t('detail.back') },
+            h(IconBack, { size: 20 }),
+          ),
+          h('span', { className: 'dsn-detail-title' }, t('trash.title')),
+        ),
+        status !== null
+          ? h(
+              'div',
+              {
+                className: 'dsn-status',
+                role: 'status',
+                'data-success': status.error ? undefined : true,
+                'data-error': status.error || undefined,
+              },
+              status.text,
+            )
+          : null,
+        view.trashError !== null ? h('div', { className: 'dsn-error', role: 'alert' }, view.trashError) : null,
+        h(
+          'div',
+          { className: 'dsn-scroll' },
+          view.trashStatus === 'loading'
+            ? h(
+                'div',
+                { className: 'dsn-empty' },
+                h('span', { className: 'dsn-empty-icon' }, h(IconRefresh, { size: 22 })),
+                h('p', { className: 'dsn-empty-text' }, t('status.loading')),
+              )
+            : null,
+          view.trashStatus !== 'loading' && view.trashItems.length === 0
+            ? h(
+                'div',
+                { className: 'dsn-empty' },
+                h('span', { className: 'dsn-empty-icon' }, h(IconTrash, { size: 26 })),
+                h('p', { className: 'dsn-empty-text' }, t('trash.emptyPage')),
+              )
+            : null,
+          sections.map((section) =>
+            h(
+              'div',
+              { className: 'dsn-trash-section', key: section.origin },
+              h(
+                'div',
+                { className: 'dsn-trash-section-head' },
+                h('span', { className: 'dsn-trash-section-title' }, originLabel(section.origin)),
+                h('span', { className: 'dsn-chip' }, t('trash.count', { count: section.notes.length })),
+                h('span', { className: 'dsn-group-spacer' }),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'dsn-btn',
+                    'data-danger': true,
+                    disabled: busy,
+                    onClick: () => setEmptyOrigin(section.origin),
+                  },
+                  t('trash.emptySection'),
+                ),
+              ),
+              section.notes.map((note) =>
+                h(TrashRow, { key: note.id, note, t, busy: busyId === note.id, onRestore: (row) => void restore(row) }),
+              ),
+            ),
+          ),
+        ),
+        pending !== null
+          ? h(ConfirmDialog, {
+              t,
+              title: t('trash.confirmTitle'),
+              text: t('trash.confirmText', { label: originLabel(pending.origin), count: pending.notes.length }),
+              confirmLabel: t('trash.confirmAgain'),
+              danger: true,
+              busy,
+              onConfirm: () => void empty(),
+              onCancel: () => setEmptyOrigin(null),
+            })
+          : null,
+      )
+    }
+
     /** The tab body: filters, search, the list, and the detail/editor views. */
     function NotesPane(props) {
       const { sessionId, store, t, ctx } = props
       const view = useStore(store)
-      const [filter, setFilter] = useState('session')
+      const [filter, setFilter] = useState('workspace')
       const [query, setQuery] = useState('')
       const [openId, setOpenId] = useState(null)
       const [editor, setEditor] = useState(null)
@@ -1329,6 +1849,10 @@ window.__ModuleLoader__.load({
       const [busyId, setBusyId] = useState(null)
       const [confirmId, setConfirmId] = useState(null)
       const [status, setStatus] = useState(null)
+      const [trashOpen, setTrashOpen] = useState(false)
+      const [confirmArchive, setConfirmArchive] = useState(null)
+      const archivedSessionIds = useArchivedSessions(ctx)
+      const catalog = useSessionsCatalog(ctx)
 
       useEffect(() => {
         void store.load(sessionId ?? null)
@@ -1354,11 +1878,41 @@ window.__ModuleLoader__.load({
       const items = useMemo(() => {
         const term = query.trim().toLowerCase()
         return view.items.filter((note) => {
-          if (filter === 'global' ? note.scope !== 'global' : note.sessionId !== sessionId) return false
+          if (filter === 'global') {
+            if (note.scope !== 'global') return false
+          } else if (note.scope !== 'session') {
+            return false
+          } else if (filter === 'session' && note.sessionId !== sessionId) {
+            return false
+          }
           if (term.length === 0) return true
           return `${note.title} ${note.snippet}`.toLowerCase().includes(term)
         })
       }, [view.items, filter, query, sessionId])
+
+      // The workspace surface groups by source Session; the count banner above
+      // the list ignores the search term so it never jumps while filtering.
+      const workspaceItems = useMemo(
+        () => (filter === 'workspace' ? view.items.filter((note) => note.scope === 'session') : []),
+        [view.items, filter],
+      )
+      const groups = useMemo(
+        () => (filter === 'workspace' ? groupWorkspaceNotes(items, archivedSessionIds) : null),
+        [items, filter, archivedSessionIds],
+      )
+      const archivedCount = useMemo(
+        () => archivedNoteCount(workspaceItems, archivedSessionIds),
+        [workspaceItems, archivedSessionIds],
+      )
+      const archivedSessions = useMemo(() => {
+        if (!Array.isArray(archivedSessionIds) || archivedSessionIds.length === 0) return 0
+        const archived = new Set(archivedSessionIds)
+        const ids = new Set()
+        for (const note of workspaceItems) {
+          if (note.sessionId !== null && archived.has(note.sessionId)) ids.add(note.sessionId)
+        }
+        return ids.size
+      }, [workspaceItems, archivedSessionIds])
 
       const open = (id) => {
         setEditor(null)
@@ -1379,7 +1933,7 @@ window.__ModuleLoader__.load({
           return
         }
         notify(t('status.captured'))
-        setFilter('session')
+        setFilter('workspace')
       }
 
       /** Read one note's body and append it to the current composer. */
@@ -1440,6 +1994,26 @@ window.__ModuleLoader__.load({
         notify(t('status.deleted'))
       }
 
+      /** Move every note of an archived Session in this workspace into the bin. */
+      const trashArchived = async () => {
+        setBusy(true)
+        const result = await store.trashArchived(sessionId)
+        setBusy(false)
+        setConfirmArchive(null)
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        const trashed = result.value?.trashed ?? 0
+        const failed = result.value?.failed ?? 0
+        if (failed > 0) notify(t('status.trashFailed', { trashed, failed }), true)
+        else notify(t('status.trashedArchived', { count: trashed }))
+      }
+
+      if (trashOpen) {
+        return h(TrashView, { sessionId, store, t, onBack: () => setTrashOpen(false) })
+      }
+
       if (editor !== null) {
         return h(NoteEditor, {
           t,
@@ -1490,7 +2064,24 @@ window.__ModuleLoader__.load({
         })
       }
 
-      const emptyText = filter === 'global' ? t('filter.emptyGlobal') : t('filter.emptySession')
+      const emptyText =
+        filter === 'global' ? t('filter.emptyGlobal') : filter === 'workspace' ? t('filter.emptyWorkspace') : t('filter.emptySession')
+      const groupTitleOf = (group) =>
+        sessionDisplayTitle(catalog, group.sessionId) ?? (group.sessionId === null ? t('group.noSession') : t('group.unknownSession'))
+      const renderRow = (note) =>
+        h(NoteRow, {
+          key: note.id,
+          note,
+          t,
+          busy: busyId === note.id,
+          confirming: confirmId === note.id,
+          chip: filter !== 'workspace',
+          onOpen: open,
+          onInsert: (row) => void insertNote(row),
+          onFavorite: (row) => void toggleFavorite(row),
+          onScope: (row) => void toggleScope(row),
+          onDelete: (row) => void deleteNote(row),
+        })
       return h(
         'div',
         { className: 'dsn-pane', 'data-dsn-ignore-capture': true },
@@ -1501,6 +2092,11 @@ window.__ModuleLoader__.load({
             'button',
             { type: 'button', className: 'dsn-seg', 'data-active': filter === 'session' || undefined, onClick: () => setFilter('session') },
             t('filter.session'),
+          ),
+          h(
+            'button',
+            { type: 'button', className: 'dsn-seg', 'data-active': filter === 'workspace' || undefined, onClick: () => setFilter('workspace') },
+            t('filter.workspace'),
           ),
           h(
             'button',
@@ -1549,6 +2145,29 @@ window.__ModuleLoader__.load({
             )
           : null,
         view.error !== null ? h('div', { className: 'dsn-error', role: 'alert' }, view.error) : null,
+        filter === 'workspace' && archivedCount > 0
+          ? h(
+              'div',
+              { className: 'dsn-banner' },
+              h(IconArchive, { size: 15 }),
+              h(
+                'span',
+                { className: 'dsn-banner-text' },
+                `${t('archive.banner')} · ${t('archive.bannerCount', { sessions: archivedSessions, count: archivedCount })}`,
+              ),
+              h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'dsn-btn',
+                  'data-danger': true,
+                  disabled: busy,
+                  onClick: () => setConfirmArchive({ sessions: archivedSessions, count: archivedCount }),
+                },
+                t('archive.moveToTrash'),
+              ),
+            )
+          : null,
         h(
           'div',
           { className: 'dsn-scroll' },
@@ -1570,7 +2189,7 @@ window.__ModuleLoader__.load({
                   ? h(
                       'div',
                       { className: 'dsn-empty-actions' },
-                      filter === 'session'
+                      filter !== 'global'
                         ? h(
                             'button',
                             { type: 'button', className: 'dsn-btn', 'data-primary': true, disabled: busy, onClick: () => void captureSession() },
@@ -1588,21 +2207,45 @@ window.__ModuleLoader__.load({
                   : null,
               )
             : null,
-          items.map((note) =>
-            h(NoteRow, {
-              key: note.id,
-              note,
-              t,
-              busy: busyId === note.id,
-              confirming: confirmId === note.id,
-              onOpen: open,
-              onInsert: (row) => void insertNote(row),
-              onFavorite: (row) => void toggleFavorite(row),
-              onScope: (row) => void toggleScope(row),
-              onDelete: (row) => void deleteNote(row),
-            }),
+          groups !== null
+            ? groups.map((group) =>
+                h(
+                  'div',
+                  { className: 'dsn-group', key: group.sessionId ?? 'no-session' },
+                  h(
+                    'div',
+                    { className: 'dsn-group-head' },
+                    h('span', { className: 'dsn-group-title', title: groupTitleOf(group) }, groupTitleOf(group)),
+                    group.archived ? h('span', { className: 'dsn-chip', 'data-archived': true }, t('group.archived')) : null,
+                    h('span', { className: 'dsn-group-count' }, String(group.notes.length)),
+                    h('span', { className: 'dsn-group-spacer' }),
+                  ),
+                  group.notes.map(renderRow),
+                ),
+              )
+            : items.map(renderRow),
+          h(
+            'div',
+            { className: 'dsn-list-foot' },
+            h(
+              'button',
+              { type: 'button', className: 'dsn-footbtn', onClick: () => setTrashOpen(true) },
+              h(IconTrash, { size: 14 }),
+              t('trash.open'),
+            ),
           ),
         ),
+        confirmArchive !== null
+          ? h(ConfirmDialog, {
+              t,
+              title: t('archive.confirmTitle'),
+              text: t('archive.confirmText', { sessions: confirmArchive.sessions, count: confirmArchive.count }),
+              confirmLabel: t('archive.moveToTrash'),
+              busy,
+              onConfirm: () => void trashArchived(),
+              onCancel: () => setConfirmArchive(null),
+            })
+          : null,
       )
     }
 
@@ -2146,7 +2789,17 @@ window.__ModuleLoader__.load({
       inject,
       apply,
       /** Debug handle for the Host-side smoke test; not part of the plugin surface. */
-      __internals: { renderMarkdown, selectionToMarkdown, domToMarkdown, titleOfText, insertIntoComposer, failureText },
+      __internals: {
+        renderMarkdown,
+        selectionToMarkdown,
+        domToMarkdown,
+        titleOfText,
+        insertIntoComposer,
+        failureText,
+        groupWorkspaceNotes,
+        archivedNoteCount,
+        sessionDisplayTitle,
+      },
     }
   },
 })

@@ -9,13 +9,20 @@ import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
 import { deriveEventMessage, isAppendSurfaceEvent } from '@deepseek-ai/dsh-session/surface'
 import {
   clampTitle,
+  compareNotes,
   defaultRoot,
+  emptyTrash as emptyStoredTrash,
+  findNote,
   findNoteIn,
   isNoteId,
+  moveNoteToTrash,
   newNoteId,
   projectRootFor,
+  readAllNotes,
   readNotesFrom,
+  readTrashedNotes,
   removeNote,
+  restoreTrashedNote,
   sanitizeProjectDirectory,
   titleFromBody,
   toDetail,
@@ -92,6 +99,70 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
     return project === null ? [this.root] : [project, this.root]
   }
 
+  /**
+   * Sessions the Workspace registry reports as archived, or null when this Host
+   * has no Workspace service (the notes panel then hides archive affordances).
+   */
+  archivedSessionIds() {
+    try {
+      const registry = this.ctx.get('workspaceRegistry')
+      const ids = registry?.archivedSessionIds
+      return Array.isArray(ids) ? new Set(ids.map((id) => String(id))) : null
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Every note the workspace surface shows for one Session: all notes of its
+   * project store (any Session), plus global notes, plus legacy session notes
+   * that live in the global store but belong to this workspace. Legacy files
+   * are included so a pre-1.5 or write-fallback capture never disappears.
+   */
+  async workspaceNotes(sessionId) {
+    const project = await this.projectRootOf(sessionId)
+    const notes = []
+    const seen = new Set()
+    if (project !== null) {
+      for (const note of await readAllNotes(project)) {
+        seen.add(note.id)
+        notes.push(note)
+      }
+    }
+    for (const note of await readAllNotes(this.root)) {
+      if (seen.has(note.id)) continue
+      if (note.scope === 'global') {
+        notes.push(note)
+        continue
+      }
+      if (note.sessionId === null) continue
+      // A session note still stored globally stays visible in the Session that
+      // owns it, and joins the workspace once its project can be resolved.
+      if (note.sessionId === sessionId) {
+        notes.push(note)
+        continue
+      }
+      if (project !== null && (await this.projectRootOf(note.sessionId)) === project) notes.push(note)
+    }
+    notes.sort(compareNotes)
+    return { project, notes }
+  }
+
+  /**
+   * Every note in one workspace store and the global store. The client splits
+   * the result by `scope`: session notes are the workspace surface, global
+   * notes are the cross-workspace surface.
+   */
+  async list(request) {
+    try {
+      const sessionId = textOf(request?.sessionId, 160) || null
+      const { notes } = await this.workspaceNotes(sessionId)
+      return ok({ notes: notes.map((note) => toSummary(note)) })
+    } catch (error) {
+      return fail('list-failed', errorMessage(error))
+    }
+  }
+
   /** Store one note belongs in, from its visibility and owning Session. */
   async targetRootFor(note, sessionId) {
     if (note.scope === 'global') return this.root
@@ -107,20 +178,6 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
       await removeNote(existing.path)
     }
     return path
-  }
-
-  /** Every note visible to one Session: its project notes plus every global note. */
-  async list(request) {
-    try {
-      const sessionId = textOf(request?.sessionId, 160) || null
-      const notes = await readNotesFrom(await this.rootsFor(sessionId))
-      const visible = notes.filter(
-        (note) => note.scope === 'global' || (sessionId !== null && note.sessionId === sessionId),
-      )
-      return ok({ notes: visible.map((note) => toSummary(note)) })
-    } catch (error) {
-      return fail('list-failed', errorMessage(error))
-    }
   }
 
   /** One note with its full Markdown body. */
@@ -204,9 +261,11 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
   }
 
   /**
-   * Delete one note file. Named `removeNote` rather than `remove`: the client
-   * Remote namespace service already owns a `remove` method, and a descriptor
-   * named `remove` is refused when the contribution mounts.
+   * Move one note into its store's recycle bin. Named `removeNote` rather than
+   * `remove`: the client Remote namespace service already owns a `remove`
+   * method, and a descriptor named `remove` is refused when the contribution
+   * mounts. The note can be restored from the recap page until the bin is
+   * emptied, which is the only operation that unlinks files.
    */
   removeNote(request) {
     return this.enqueue(async () => {
@@ -215,10 +274,122 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
       try {
         const sessionId = textOf(request?.sessionId, 160) || null
         const existing = await findNoteIn(await this.rootsFor(sessionId), id)
-        if (existing !== undefined) await removeNote(existing.path)
+        if (existing !== undefined) await moveNoteToTrash(existing)
         return ok({ removed: true })
       } catch (error) {
-        return fail('remove-failed', errorMessage(error))
+        return fail('trash-failed', errorMessage(error))
+      }
+    })
+  }
+
+  /** Every note currently in the workspace and global recycle bins. */
+  async listTrash(request) {
+    try {
+      const sessionId = textOf(request?.sessionId, 160) || null
+      const project = await this.projectRootOf(sessionId)
+      const notes = []
+      const seen = new Set()
+      for (const note of project === null ? [] : await readTrashedNotes(project)) {
+        seen.add(note.id)
+        notes.push({ ...toSummary(note), origin: 'workspace' })
+      }
+      for (const note of await readTrashedNotes(this.root)) {
+        if (seen.has(note.id)) continue
+        notes.push({ ...toSummary(note), origin: 'global' })
+      }
+      notes.sort((left, right) => (right.trashedAt ?? 0) - (left.trashedAt ?? 0) || right.updatedAt - left.updatedAt)
+      return ok({ notes })
+    } catch (error) {
+      return fail('list-trash-failed', errorMessage(error))
+    }
+  }
+
+  /** Restore one trashed note into the store it was deleted from. */
+  restoreNote(request) {
+    return this.enqueue(async () => {
+      const id = textOf(request?.id, 64)
+      if (!isNoteId(id)) return fail('bad-id', '便签 ID 无效')
+      try {
+        const sessionId = textOf(request?.sessionId, 160) || null
+        const project = await this.projectRootOf(sessionId)
+        const roots = project === null ? [this.root] : [project, this.root]
+        for (const root of roots) {
+          const trashed = (await readTrashedNotes(root)).find((note) => note.id === id)
+          if (trashed === undefined) continue
+          if ((await findNote(root, id)) !== undefined) {
+            return fail('exists', '同一位置已有一条相同 ID 的便签，无法恢复')
+          }
+          const path = await restoreTrashedNote(root, trashed)
+          return ok({ note: toSummary({ ...trashed, trashedAt: null, path }) })
+        }
+        return fail('not-found', '回收站中没有这条便签')
+      } catch (error) {
+        return fail('restore-failed', errorMessage(error))
+      }
+    })
+  }
+
+  /**
+   * Permanently unlink every note in one recycle bin: the workspace bin, the
+   * global bin, or both. This is the only irreversible notes operation.
+   */
+  emptyTrash(request) {
+    return this.enqueue(async () => {
+      const origin = request?.origin === 'workspace' || request?.origin === 'global' ? request.origin : 'all'
+      try {
+        const sessionId = textOf(request?.sessionId, 160) || null
+        const project = await this.projectRootOf(sessionId)
+        if (origin === 'workspace' && project === null) {
+          return fail('no-workspace', '当前会话没有可识别的工作区，无法清空工作区回收站')
+        }
+        const roots = []
+        if (origin !== 'global' && project !== null) roots.push(project)
+        if (origin !== 'workspace') roots.push(this.root)
+        let removed = 0
+        let failed = 0
+        for (const root of roots) {
+          const result = await emptyStoredTrash(root)
+          removed += result.removed
+          failed += result.failed
+        }
+        return ok({ removed, failed })
+      } catch (error) {
+        return fail('purge-failed', errorMessage(error))
+      }
+    })
+  }
+
+  /**
+   * Move every note of an archived Session in this workspace into the recycle
+   * bin. The archive set is read from this Host's Workspace registry, never
+   * from the client, so a stale panel cannot delete the wrong notes.
+   */
+  trashArchived(request) {
+    return this.enqueue(async () => {
+      try {
+        const sessionId = textOf(request?.sessionId, 160) || null
+        const archived = this.archivedSessionIds()
+        if (archived === null) {
+          return fail('archive-unavailable', '这个环境没有工作区归档信息，无法按归档批量清理')
+        }
+        const { project, notes } = await this.workspaceNotes(sessionId)
+        if (project === null) {
+          return fail('no-workspace', '当前会话没有可识别的工作区，无法清理归档便签')
+        }
+        let trashed = 0
+        let failed = 0
+        for (const note of notes) {
+          if (note.scope !== 'session' || note.sessionId === null || !archived.has(note.sessionId)) continue
+          try {
+            await moveNoteToTrash(note)
+            trashed += 1
+          } catch {
+            failed += 1
+          }
+        }
+        return ok({ trashed, failed })
+      } catch (error) {
+        return fail('trash-archive-failed', errorMessage(error))
       }
     })
   }
@@ -397,6 +568,10 @@ for (const method of [
   'create',
   'update',
   'removeNote',
+  'listTrash',
+  'restoreNote',
+  'emptyTrash',
+  'trashArchived',
   'setFavorite',
   'setScope',
   'captureMessage',
