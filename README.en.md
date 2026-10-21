@@ -216,3 +216,9 @@ here edits the running plugin.
 - "Save whole chat" joins the visible user/assistant text into one note and skips reasoning, tool
   calls, and tool output;
 - Note contents are never translated when the UI language changes — existing files stay as written.
+
+## License
+
+[MIT](LICENSE) © 2026 tryqylz
+
+Free to use, modify, distribute, and use commercially; keep the copyright notice and license text.
