@@ -81,30 +81,33 @@ window.__ModuleLoader__.load({
 .dsn-seg:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
 .dsn-count{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:4px;font-variant-numeric:tabular-nums}
 .dsn-spacer{flex:1}
-.dsn-iconbtn{appearance:none;border:none;background:transparent;color:var(--dsw-alias-label-secondary);width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;padding:0;transition:background 150ms ease,color 150ms ease}
+.dsn-iconbtn{appearance:none;border:none;background:transparent;color:var(--dsw-alias-label-secondary);width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;padding:0;transition:background 150ms ease,color 150ms ease}
 .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
 .dsn-iconbtn:disabled{opacity:.45;cursor:default}
 .dsn-iconbtn[data-active]{color:var(--dsw-alias-brand-primary)}
+.dsn-iconbtn[data-danger]{color:var(--dsw-alias-state-error-primary)}
 .dsn-iconbtn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
-.dsn-iconbtn-sm{width:24px;height:24px;border-radius:7px}
 .dsn-search{display:flex;gap:6px;align-items:center;padding:6px 10px;flex:none}
 .dsn-search input{flex:1;min-width:0;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;border-radius:8px;padding:6px 9px;transition:border-color 150ms ease}
 .dsn-search input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
-.dsn-scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 6px 24px;scrollbar-gutter:stable}
-.dsn-row{position:relative;border-radius:10px;border:1px solid transparent;margin:2px 0;transition:background 150ms ease,border-color 150ms ease}
-.dsn-row:hover{background:var(--dsw-alias-bg-layer-2)}
-.dsn-row:focus-within{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l1)}
-.dsn-row[data-favorite]::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:2px;border-radius:2px;background:var(--dsw-alias-brand-primary)}
-.dsn-row[data-busy] .dsn-row-open{opacity:.72}
-.dsn-row-open{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:8px 10px 6px 12px;border-radius:10px;cursor:pointer}
+.dsn-scroll{flex:1;min-height:0;overflow-y:auto;padding:8px 8px 28px;scrollbar-gutter:stable}
+.dsn-row{position:relative;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 8px;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:border-color 150ms ease,box-shadow 150ms ease,opacity 150ms ease}
+.dsn-row:hover{border-color:var(--dsw-alias-border-l2);box-shadow:0 3px 10px rgba(0,0,0,.10)}
+.dsn-row:focus-within{border-color:var(--dsw-alias-border-l2)}
+.dsn-row[data-favorite]{box-shadow:inset 3px 0 0 var(--dsw-alias-brand-primary),0 1px 2px rgba(0,0,0,.05)}
+.dsn-row[data-favorite]:hover{box-shadow:inset 3px 0 0 var(--dsw-alias-brand-primary),0 3px 10px rgba(0,0,0,.10)}
+.dsn-row[data-busy]{opacity:.75}
+.dsn-row-open{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:10px 12px 2px;border-radius:12px 12px 0 0;cursor:pointer}
 .dsn-row-open:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
-.dsn-title{display:block;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.dsn-meta{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;padding-right:80px}
+.dsn-title{display:block;font-size:13px;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.dsn-row-foot{display:flex;align-items:center;gap:8px;padding:2px 8px 8px 12px;min-width:0}
+.dsn-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;flex:1;overflow:hidden}
 .dsn-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
 .dsn-chip[data-global]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dsn-row-actions{position:absolute;right:5px;bottom:4px;display:flex;align-items:center;gap:0}
+.dsn-row-actions{display:flex;align-items:center;gap:2px;flex:none}
+.dsn-row-actions .dsn-iconbtn{width:30px;height:30px;border-radius:9px}
 .dsn-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:44px 18px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.8}
 .dsn-empty-icon{opacity:.6}
 .dsn-empty-text{white-space:pre-line;margin:0}
@@ -118,13 +121,15 @@ window.__ModuleLoader__.load({
 .dsn-detail-title{flex:1;min-width:0;font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
 .dsn-detail-body{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 20px;user-select:text}
 .dsn-detail-meta{font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.6;margin-bottom:8px;word-break:break-all}
-.dsn-actions{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-top:1px solid var(--dsw-alias-border-l1)}
-.dsn-btn{appearance:none;font:inherit;font-size:12px;line-height:22px;padding:2px 9px;border-radius:8px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;transition:background 150ms ease,border-color 150ms ease,color 150ms ease}
+.dsn-actions{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--dsw-alias-border-l1)}
+.dsn-btn{appearance:none;font:inherit;font-size:13px;line-height:24px;min-height:32px;padding:3px 12px;border-radius:9px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background 150ms ease,border-color 150ms ease,color 150ms ease}
 .dsn-btn:hover{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2)}
 .dsn-btn:disabled{opacity:.45;cursor:default}
 .dsn-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
-.dsn-btn[data-primary]{background:var(--dsw-alias-brand-primary);border-color:transparent;color:#fff;font-weight:500}
+.dsn-btn[data-primary]{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary);font-weight:600}
+.dsn-btn[data-primary]:hover{background:var(--dsw-alias-bg-layer-1);border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-btn[data-danger]{color:var(--dsw-alias-state-error-primary)}
+.dsn-btn[data-danger]:hover{border-color:var(--dsw-alias-state-error-primary)}
 .dsn-btn[data-active]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-detail-status{font-size:11px;line-height:20px;padding:0 12px 6px;color:var(--dsw-alias-label-secondary)}
 .dsn-detail-status[data-success]{color:var(--dsw-alias-state-success-primary)}
@@ -700,12 +705,14 @@ window.__ModuleLoader__.load({
     // ── list ───────────────────────────────────────────────────────────────
 
     /**
-     * One collapsed note row: a full-row open target plus inline actions for
-     * insert / favorite / visibility, so the list never needs the detail view.
+     * One note card: a full-width open target plus a footer of large inline
+     * actions (favorite / insert / visibility / delete), so the list never
+     * needs the detail view to do the common operations.
      */
-    function NoteRow({ note, t, busy, onOpen, onInsert, onFavorite, onScope }) {
+    function NoteRow({ note, t, busy, confirming, onOpen, onInsert, onFavorite, onScope, onDelete }) {
       const favoriteLabel = note.favorite ? t('row.unfavorite') : t('row.favorite')
       const scopeLabel = note.scope === 'global' ? t('row.makeSession') : t('row.makeGlobal')
+      const deleteLabel = confirming ? t('detail.deleteAgain') : t('detail.delete')
       return h(
         'div',
         {
@@ -718,6 +725,10 @@ window.__ModuleLoader__.load({
           { type: 'button', className: 'dsn-row-open', onClick: () => onOpen(note.id), title: note.title },
           h('span', { className: 'dsn-title' }, note.title),
           note.snippet.length > 0 ? h('span', { className: 'dsn-snippet' }, note.snippet) : null,
+        ),
+        h(
+          'div',
+          { className: 'dsn-row-foot' },
           h(
             'span',
             { className: 'dsn-meta' },
@@ -728,47 +739,60 @@ window.__ModuleLoader__.load({
             ),
             h('span', { className: 'dsn-time' }, formatTime(note.updatedAt)),
           ),
-        ),
-        h(
-          'div',
-          { className: 'dsn-row-actions' },
           h(
-            'button',
-            {
-              type: 'button',
-              className: 'dsn-iconbtn dsn-iconbtn-sm',
-              'data-active': note.favorite || undefined,
-              title: favoriteLabel,
-              'aria-label': favoriteLabel,
-              'aria-pressed': note.favorite ? 'true' : 'false',
-              disabled: busy,
-              onClick: () => onFavorite(note),
-            },
-            h(IconStar, { size: 15, filled: note.favorite }),
-          ),
-          h(
-            'button',
-            {
-              type: 'button',
-              className: 'dsn-iconbtn dsn-iconbtn-sm',
-              title: t('row.insert'),
-              'aria-label': t('row.insert'),
-              disabled: busy,
-              onClick: () => onInsert(note),
-            },
-            h(IconInsert, { size: 15 }),
-          ),
-          h(
-            'button',
-            {
-              type: 'button',
-              className: 'dsn-iconbtn dsn-iconbtn-sm',
-              title: scopeLabel,
-              'aria-label': scopeLabel,
-              disabled: busy,
-              onClick: () => onScope(note),
-            },
-            h(IconGlobe, { size: 15 }),
+            'div',
+            { className: 'dsn-row-actions' },
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dsn-iconbtn',
+                'data-active': note.favorite || undefined,
+                title: favoriteLabel,
+                'aria-label': favoriteLabel,
+                'aria-pressed': note.favorite ? 'true' : 'false',
+                disabled: busy,
+                onClick: () => onFavorite(note),
+              },
+              h(IconStar, { size: 18, filled: note.favorite }),
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dsn-iconbtn',
+                title: t('row.insert'),
+                'aria-label': t('row.insert'),
+                disabled: busy,
+                onClick: () => onInsert(note),
+              },
+              h(IconInsert, { size: 18 }),
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dsn-iconbtn',
+                title: scopeLabel,
+                'aria-label': scopeLabel,
+                disabled: busy,
+                onClick: () => onScope(note),
+              },
+              h(IconGlobe, { size: 18 }),
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                className: 'dsn-iconbtn',
+                'data-danger': confirming || undefined,
+                title: deleteLabel,
+                'aria-label': deleteLabel,
+                disabled: busy,
+                onClick: () => onDelete(note),
+              },
+              h(IconTrash, { size: 18 }),
+            ),
           ),
         ),
       )
@@ -784,6 +808,7 @@ window.__ModuleLoader__.load({
       const [editor, setEditor] = useState(null)
       const [busy, setBusy] = useState(false)
       const [busyId, setBusyId] = useState(null)
+      const [confirmId, setConfirmId] = useState(null)
       const [status, setStatus] = useState(null)
 
       useEffect(() => {
@@ -795,6 +820,14 @@ window.__ModuleLoader__.load({
         const timer = setTimeout(() => setStatus(null), 2400)
         return () => clearTimeout(timer)
       }, [status])
+
+      // A pending delete confirmation resets on its own, so a stray click can
+      // never leave a row stuck in the danger state.
+      useEffect(() => {
+        if (confirmId === null) return undefined
+        const timer = setTimeout(() => setConfirmId(null), 3200)
+        return () => clearTimeout(timer)
+      }, [confirmId])
 
       /** Show one transient status line; `error` switches it to the error tone. */
       const notify = (text, error = false) => setStatus({ text, error })
@@ -868,6 +901,24 @@ window.__ModuleLoader__.load({
           return
         }
         notify(next === 'global' ? t('status.scopeGlobal') : t('status.scopeSession'))
+      }
+
+      /** Two-step delete: the first click arms the row, the second removes it. */
+      const deleteNote = async (note) => {
+        if (confirmId !== note.id) {
+          setConfirmId(note.id)
+          return
+        }
+        setConfirmId(null)
+        setBusyId(note.id)
+        const result = await store.remove(note.id, sessionId)
+        setBusyId(null)
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        if (openId === note.id) setOpenId(null)
+        notify(t('status.deleted'))
       }
 
       if (editor !== null) {
@@ -1024,10 +1075,12 @@ window.__ModuleLoader__.load({
               note,
               t,
               busy: busyId === note.id,
+              confirming: confirmId === note.id,
               onOpen: open,
               onInsert: (row) => void insertNote(row),
               onFavorite: (row) => void toggleFavorite(row),
               onScope: (row) => void toggleScope(row),
+              onDelete: (row) => void deleteNote(row),
             }),
           ),
         ),
@@ -1179,14 +1232,22 @@ window.__ModuleLoader__.load({
         ),
         h(
           'div',
-          { className: 'dsn-detail-body', ref: bodyRef },
+          { className: 'dsn-actions' },
+          h('button', { type: 'button', className: 'dsn-btn', 'data-primary': true, onClick: () => insert(`## ${note.title}\n\n${note.body}`), title: t('detail.insert') }, h(IconInsert, { size: 16 }), t('detail.insert')),
+          h('button', { type: 'button', className: 'dsn-btn', onClick: insertSelection, title: t('detail.insertSelection') }, t('detail.insertSelection')),
           h(
-            'div',
-            { className: 'dsn-detail-meta' },
-            `${note.scope === 'global' ? t('row.global') : t('row.session')} · ${formatTime(note.updatedAt)} · `,
-            h('span', { title: note.path }, note.path),
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-btn',
+              onClick: () => insert(`便签文件（Markdown）：\`${note.path}\``),
+              title: t('detail.insertFile'),
+            },
+            t('detail.insertFile'),
           ),
-          h('div', { className: 'dsn-md', dangerouslySetInnerHTML: { __html: renderMarkdown(note.body) } }),
+          h('button', { type: 'button', className: 'dsn-btn', onClick: () => void copy(), title: t('detail.copy') }, h(IconCopy, { size: 16 }), t('detail.copy')),
+          h('button', { type: 'button', className: 'dsn-btn', onClick: () => void toggleScope(), disabled: busy, title: note.scope === 'global' ? t('detail.makeSession') : t('detail.makeGlobal') }, h(IconGlobe, { size: 16 }), note.scope === 'global' ? t('detail.makeSession') : t('detail.makeGlobal')),
+          h('button', { type: 'button', className: 'dsn-btn', 'data-danger': true, onClick: () => void remove(), disabled: busy }, h(IconTrash, { size: 16 }), confirmDelete ? t('detail.deleteAgain') : t('detail.delete')),
         ),
         status !== null
           ? h(
@@ -1202,22 +1263,14 @@ window.__ModuleLoader__.load({
           : null,
         h(
           'div',
-          { className: 'dsn-actions' },
-          h('button', { type: 'button', className: 'dsn-btn', 'data-primary': true, onClick: () => insert(`## ${note.title}\n\n${note.body}`), title: t('detail.insert') }, h(IconInsert, { size: 14 }), t('detail.insert')),
-          h('button', { type: 'button', className: 'dsn-btn', onClick: insertSelection, title: t('detail.insertSelection') }, t('detail.insertSelection')),
+          { className: 'dsn-detail-body', ref: bodyRef },
           h(
-            'button',
-            {
-              type: 'button',
-              className: 'dsn-btn',
-              onClick: () => insert(`便签文件（Markdown）：\`${note.path}\``),
-              title: t('detail.insertFile'),
-            },
-            t('detail.insertFile'),
+            'div',
+            { className: 'dsn-detail-meta' },
+            `${note.scope === 'global' ? t('row.global') : t('row.session')} · ${formatTime(note.updatedAt)} · `,
+            h('span', { title: note.path }, note.path),
           ),
-          h('button', { type: 'button', className: 'dsn-btn', onClick: () => void copy(), title: t('detail.copy') }, h(IconCopy, { size: 14 }), t('detail.copy')),
-          h('button', { type: 'button', className: 'dsn-btn', onClick: () => void toggleScope(), disabled: busy, title: note.scope === 'global' ? t('detail.makeSession') : t('detail.makeGlobal') }, h(IconGlobe, { size: 14 }), note.scope === 'global' ? t('detail.makeSession') : t('detail.makeGlobal')),
-          h('button', { type: 'button', className: 'dsn-btn', 'data-danger': true, onClick: () => void remove(), disabled: busy }, h(IconTrash, { size: 14 }), confirmDelete ? t('detail.deleteAgain') : t('detail.delete')),
+          h('div', { className: 'dsn-md', dangerouslySetInnerHTML: { __html: renderMarkdown(note.body) } }),
         ),
       )
     }
