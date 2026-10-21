@@ -23,7 +23,17 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
-    "README.md"
+    "README.md",
+    "README.en.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "sticky-notes",
+    "markdown",
+    "notes",
+    "sidebar"
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": "~4.0.5",
