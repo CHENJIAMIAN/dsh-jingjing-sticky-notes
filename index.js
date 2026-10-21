@@ -92,6 +92,23 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
     return project === null ? [this.root] : [project, this.root]
   }
 
+  /** Store one note belongs in, from its visibility and owning Session. */
+  async targetRootFor(note, sessionId) {
+    if (note.scope === 'global') return this.root
+    const owner = note.sessionId ?? (textOf(sessionId, 160) || null)
+    const project = owner === null ? null : await this.projectRootOf(owner)
+    return project ?? this.root
+  }
+
+  /** Write one note to its target store and drop any file it no longer lives in. */
+  async commitNote(existing, note, targetRoot) {
+    const path = await writeNote(targetRoot, note)
+    if (typeof existing.path === 'string' && existing.path !== path) {
+      await removeNote(existing.path)
+    }
+    return path
+  }
+
   /** Every note visible to one Session: its project notes plus every global note. */
   async list(request) {
     try {
@@ -142,6 +159,7 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
         id: newNoteId(),
         title,
         scope,
+        favorite: request?.favorite === true,
         sessionId,
         sessionTitle: textOf(request?.sessionTitle, 200) || null,
         createdAt: now,
@@ -173,17 +191,11 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
           title: clampTitle(textOf(request?.title, 200).trim() || titleFromBody(body)),
           body,
           scope: request?.scope === 'global' ? 'global' : 'session',
+          favorite: typeof request?.favorite === 'boolean' ? request.favorite : existing.favorite === true,
           updatedAt: Math.max(Date.now(), existing.updatedAt),
         }
-        // Toggling visibility moves the file between the project and global store.
-        const owner = note.scope === 'session' ? (existing.sessionId ?? sessionId) : null
-        const project = owner === null ? null : await this.projectRootOf(owner)
-        const targetRoot = note.scope === 'global' ? this.root : (project ?? this.root)
-        const path = await writeNote(targetRoot, note)
-        // A title change renames the file; do not leave the old one behind.
-        if (typeof existing.path === 'string' && existing.path !== path) {
-          await removeNote(existing.path)
-        }
+        const targetRoot = await this.targetRootFor(note, sessionId)
+        const path = await this.commitNote(existing, note, targetRoot)
         return ok({ note: toSummary({ ...note, path }) })
       } catch (error) {
         return fail('write-failed', errorMessage(error))
@@ -207,6 +219,43 @@ let StickyNotesService = class StickyNotesService extends TypertRemoteService {
         return ok({ removed: true })
       } catch (error) {
         return fail('remove-failed', errorMessage(error))
+      }
+    })
+  }
+
+  /** Pin or unpin one note without rewriting its body. */
+  setFavorite(request) {
+    return this.enqueue(async () => {
+      const id = textOf(request?.id, 64)
+      if (!isNoteId(id)) return fail('bad-id', '便签 ID 无效')
+      try {
+        const sessionId = textOf(request?.sessionId, 160) || null
+        const existing = await findNoteIn(await this.rootsFor(sessionId), id)
+        if (existing === undefined) return fail('not-found', '便签已不存在，可能已被删除')
+        // Pinning is metadata only: it must not look like a content edit.
+        const note = { ...existing, favorite: request?.favorite === true }
+        const path = await this.commitNote(existing, note, await this.targetRootFor(note, sessionId))
+        return ok({ note: toSummary({ ...note, path }) })
+      } catch (error) {
+        return fail('favorite-failed', errorMessage(error))
+      }
+    })
+  }
+
+  /** Move one note between project and global visibility without rewriting its body. */
+  setScope(request) {
+    return this.enqueue(async () => {
+      const id = textOf(request?.id, 64)
+      if (!isNoteId(id)) return fail('bad-id', '便签 ID 无效')
+      try {
+        const sessionId = textOf(request?.sessionId, 160) || null
+        const existing = await findNoteIn(await this.rootsFor(sessionId), id)
+        if (existing === undefined) return fail('not-found', '便签已不存在，可能已被删除')
+        const note = { ...existing, scope: request?.scope === 'global' ? 'global' : 'session' }
+        const path = await this.commitNote(existing, note, await this.targetRootFor(note, sessionId))
+        return ok({ note: toSummary({ ...note, path }) })
+      } catch (error) {
+        return fail('scope-failed', errorMessage(error))
       }
     })
   }
@@ -314,7 +363,17 @@ function formatTime(time) {
 
 // Method names are part of the wire contract. `remove` is reserved by the
 // client Remote namespace service, so the delete endpoint is `removeNote`.
-for (const method of ['list', 'read', 'create', 'update', 'removeNote', 'captureMessage', 'captureSession']) {
+for (const method of [
+  'list',
+  'read',
+  'create',
+  'update',
+  'removeNote',
+  'setFavorite',
+  'setScope',
+  'captureMessage',
+  'captureSession',
+]) {
   Remote(method)(undefined, {
     private: false,
     static: false,

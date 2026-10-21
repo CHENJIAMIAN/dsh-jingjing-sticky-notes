@@ -17,6 +17,7 @@ import {
   readNotesFrom,
   removeNote,
   sanitizeProjectDirectory,
+  serializeNote,
   snippetOf,
   titleFromBody,
   toSummary,
@@ -95,6 +96,18 @@ test('writeNote round-trips, renames by title, and parseNote reads it back', asy
   assert.equal(notes[0].title, note.title)
   assert.equal(notes[0].body, note.body)
   assert.equal(notes[0].scope, 'session')
+  assert.equal(notes[0].favorite, false)
+
+  // A missing favorite key in an older file reads as false.
+  const legacy = serializeNote({ ...note, id: 'dddddddddddd' }).replace(/^favorite:.*\n/m, '')
+  const parsedLegacy = parseNote(legacy, join(root, 'legacy.md')).note
+  assert.equal(parsedLegacy.favorite, false)
+
+  // A pinned note survives the round trip.
+  await writeNote(root, { ...note, id: 'eeeeeeeeeeee', favorite: true, updatedAt: note.updatedAt + 2 })
+  const pinned = (await readAllNotes(root)).find((entry) => entry.id === 'eeeeeeeeeeee')
+  assert.equal(pinned.favorite, true)
+  await removeNote(pinned.path)
 
   // A title change produces a new filename; the caller removes the old file.
   const renamed = await writeNote(root, { ...note, title: '改过的标题', updatedAt: note.updatedAt + 1 })
@@ -116,13 +129,15 @@ test('a hand-edited file is skipped instead of hiding the store', async (t) => {
   assert.throws(() => parseNote('no frontmatter', join(root, 'broken.md')))
 })
 
-test('readNotesFrom merges stores, newest first, one entry per id', async (t) => {
+test('readNotesFrom merges stores, favorites first, one entry per id', async (t) => {
   const projectRoot = await tempRoot(t)
   const globalRoot = await tempRoot(t)
   const older = makeNote({ id: 'aaaaaaaaaaaa', createdAt: 1000, updatedAt: 1000 })
+  const pinned = makeNote({ id: 'dddddddddddd', createdAt: 900, updatedAt: 900, favorite: true })
   const newer = makeNote({ id: 'bbbbbbbbbbbb', createdAt: 2000, updatedAt: 2000 })
   const shared = makeNote({ id: 'cccccccccccc', createdAt: 1500, updatedAt: 1500 })
   await writeNote(projectRoot, older)
+  await writeNote(projectRoot, pinned)
   await writeNote(projectRoot, shared)
   await writeNote(globalRoot, newer)
   await writeNote(globalRoot, shared)
@@ -130,9 +145,9 @@ test('readNotesFrom merges stores, newest first, one entry per id', async (t) =>
   const notes = await readNotesFrom([projectRoot, globalRoot])
   assert.deepEqual(
     notes.map((note) => note.id),
-    ['bbbbbbbbbbbb', 'cccccccccccc', 'aaaaaaaaaaaa'],
+    ['dddddddddddd', 'bbbbbbbbbbbb', 'cccccccccccc', 'aaaaaaaaaaaa'],
   )
-  assert.equal(notes.length, 3)
+  assert.equal(notes.length, 4)
 })
 
 test('findNoteIn searches stores in order', async (t) => {

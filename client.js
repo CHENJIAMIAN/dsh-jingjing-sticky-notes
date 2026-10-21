@@ -49,6 +49,8 @@ window.__ModuleLoader__.load({
       ['create', 'CreateRequest', 'NoteResult'],
       ['update', 'UpdateRequest', 'NoteResult'],
       ['removeNote', 'RemoveRequest', 'RemoveResult'],
+      ['setFavorite', 'SetFavoriteRequest', 'NoteResult'],
+      ['setScope', 'SetScopeRequest', 'NoteResult'],
       ['captureMessage', 'CaptureMessageRequest', 'NoteResult'],
       ['captureSession', 'CaptureSessionRequest', 'NoteResult'],
     ]
@@ -72,46 +74,64 @@ window.__ModuleLoader__.load({
 
     const CSS = `
 .dsn-pane{height:100%;min-height:0;display:flex;flex-direction:column;color:var(--dsw-alias-label-primary);font-size:13px;font-family:inherit}
-.dsn-bar{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
-.dsn-seg{appearance:none;border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:20px;padding:3px 9px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.dsn-bar{display:flex;align-items:center;gap:4px;padding:8px 8px 8px 10px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
+.dsn-seg{appearance:none;border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;padding:4px 10px;border-radius:8px;cursor:pointer;white-space:nowrap;transition:background 150ms ease,color 150ms ease,border-color 150ms ease}
 .dsn-seg:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
-.dsn-seg[data-active]{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2);color:var(--dsw-alias-label-primary);font-weight:600}
-.dsn-count{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:2px}
+.dsn-seg[data-active]{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l1);color:var(--dsw-alias-label-primary);font-weight:600}
+.dsn-seg:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.dsn-count{font-size:11px;color:var(--dsw-alias-label-secondary);margin-left:4px;font-variant-numeric:tabular-nums}
 .dsn-spacer{flex:1}
-.dsn-iconbtn{appearance:none;border:none;background:transparent;color:var(--dsw-alias-label-secondary);width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.dsn-iconbtn{appearance:none;border:none;background:transparent;color:var(--dsw-alias-label-secondary);width:26px;height:26px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none;padding:0;transition:background 150ms ease,color 150ms ease}
 .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
-.dsn-iconbtn:disabled{opacity:.4;cursor:default}
+.dsn-iconbtn:disabled{opacity:.45;cursor:default}
+.dsn-iconbtn[data-active]{color:var(--dsw-alias-brand-primary)}
+.dsn-iconbtn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+.dsn-iconbtn-sm{width:24px;height:24px;border-radius:7px}
 .dsn-search{display:flex;gap:6px;align-items:center;padding:6px 10px;flex:none}
-.dsn-search input{flex:1;min-width:0;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;border-radius:7px;padding:5px 8px}
-.dsn-search input:focus{outline:1px solid var(--dsw-alias-brand-primary);border-color:transparent}
-.dsn-scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 6px 28px}
-.dsn-row{display:block;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:9px;padding:7px 9px;cursor:pointer;color:inherit;font:inherit}
-.dsn-row:hover{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l1)}
-.dsn-row[data-selected]{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2)}
-.dsn-title{font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.55;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.dsn-meta{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0}
+.dsn-search input{flex:1;min-width:0;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;border-radius:8px;padding:6px 9px;transition:border-color 150ms ease}
+.dsn-search input:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
+.dsn-scroll{flex:1;min-height:0;overflow-y:auto;padding:4px 6px 24px;scrollbar-gutter:stable}
+.dsn-row{position:relative;border-radius:10px;border:1px solid transparent;margin:2px 0;transition:background 150ms ease,border-color 150ms ease}
+.dsn-row:hover{background:var(--dsw-alias-bg-layer-2)}
+.dsn-row:focus-within{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l1)}
+.dsn-row[data-favorite]::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:2px;border-radius:2px;background:var(--dsw-alias-brand-primary)}
+.dsn-row[data-busy] .dsn-row-open{opacity:.72}
+.dsn-row-open{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:8px 10px 6px 12px;border-radius:10px;cursor:pointer}
+.dsn-row-open:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+.dsn-title{display:block;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5;margin-top:3px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.dsn-meta{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;padding-right:80px}
 .dsn-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
 .dsn-chip[data-global]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dsn-empty{padding:36px 16px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.9}
+.dsn-row-actions{position:absolute;right:5px;bottom:4px;display:flex;align-items:center;gap:0}
+.dsn-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:44px 18px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.8}
+.dsn-empty-icon{opacity:.6}
+.dsn-empty-text{white-space:pre-line;margin:0}
+.dsn-empty-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:2px}
 .dsn-error{margin:6px 10px;padding:7px 9px;border-radius:8px;font-size:12px;line-height:1.6;color:var(--dsw-alias-state-error-primary);border:1px solid var(--dsw-alias-state-error-primary);background:var(--dsw-alias-bg-layer-1)}
+.dsn-status{font-size:11px;line-height:18px;padding:0 12px 6px;color:var(--dsw-alias-label-secondary)}
+.dsn-status[data-success]{color:var(--dsw-alias-state-success-primary)}
+.dsn-status[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dsn-detail{flex:1;min-height:0;display:flex;flex-direction:column}
-.dsn-detail-head{display:flex;align-items:center;gap:4px;padding:6px 10px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
-.dsn-detail-title{flex:1;min-width:0;font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dsn-detail-head{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
+.dsn-detail-title{flex:1;min-width:0;font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
 .dsn-detail-body{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 20px;user-select:text}
 .dsn-detail-meta{font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.6;margin-bottom:8px;word-break:break-all}
 .dsn-actions{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-top:1px solid var(--dsw-alias-border-l1)}
-.dsn-btn{appearance:none;font:inherit;font-size:12px;line-height:22px;padding:2px 9px;border-radius:7px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.dsn-btn{appearance:none;font:inherit;font-size:12px;line-height:22px;padding:2px 9px;border-radius:8px;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);cursor:pointer;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;transition:background 150ms ease,border-color 150ms ease,color 150ms ease}
 .dsn-btn:hover{background:var(--dsw-alias-bg-layer-2);border-color:var(--dsw-alias-border-l2)}
 .dsn-btn:disabled{opacity:.45;cursor:default}
+.dsn-btn:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
 .dsn-btn[data-primary]{background:var(--dsw-alias-brand-primary);border-color:transparent;color:#fff;font-weight:500}
 .dsn-btn[data-danger]{color:var(--dsw-alias-state-error-primary)}
 .dsn-btn[data-active]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
-.dsn-status{font-size:11px;color:var(--dsw-alias-label-secondary);line-height:22px;padding-left:2px}
+.dsn-detail-status{font-size:11px;line-height:20px;padding:0 12px 6px;color:var(--dsw-alias-label-secondary)}
+.dsn-detail-status[data-success]{color:var(--dsw-alias-state-success-primary)}
+.dsn-detail-status[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dsn-editor{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:10px}
 .dsn-editor input,.dsn-editor textarea{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;border-radius:8px;padding:7px 9px;width:100%;box-sizing:border-box}
-.dsn-editor input:focus,.dsn-editor textarea:focus{outline:1px solid var(--dsw-alias-brand-primary);border-color:transparent}
+.dsn-editor input:focus-visible,.dsn-editor textarea:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
 .dsn-editor textarea{flex:1;min-height:140px;resize:none;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.65}
 .dsn-editor-row{display:flex;gap:6px;align-items:center}
 .dsn-preview{flex:1;min-height:0;overflow:auto;border:1px solid var(--dsw-alias-border-l1);border-radius:8px;padding:8px 10px;background:var(--dsw-alias-bg-layer-1)}
@@ -144,6 +164,8 @@ window.__ModuleLoader__.load({
 .dsn-floating button{appearance:none;border:none;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;display:inline-flex;align-items:center;gap:5px;cursor:pointer;padding:3px 6px;border-radius:6px;white-space:nowrap}
 .dsn-floating button:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsn-floating-note{color:var(--dsw-alias-label-secondary);font-size:11px;padding:0 4px}
+.dsn-action:focus-visible,.dsn-open:focus-visible,.dsn-floating button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
+@media (prefers-reduced-motion: reduce){.dsn-pane,.dsn-pane *,.dsn-floating,.dsn-floating *{transition:none !important;animation:none !important}}
 `
 
     /** Insert the plugin stylesheet once per apply; the disposer removes it. */
@@ -171,8 +193,14 @@ window.__ModuleLoader__.load({
       'list.new': '新建便签',
       'list.captureSession': '收藏整段对话',
       'list.refresh': '刷新',
+      'list.count': '便签数量',
       'row.global': '全局',
       'row.session': '会话',
+      'row.favorite': '收藏',
+      'row.unfavorite': '取消收藏',
+      'row.insert': '插入会话',
+      'row.makeGlobal': '设为全局',
+      'row.makeSession': '设为会话',
       'detail.back': '返回',
       'detail.insert': '插入全文',
       'detail.insertSelection': '插入选中',
@@ -198,6 +226,10 @@ window.__ModuleLoader__.load({
       'status.deleted': '已删除',
       'status.captured': '已收藏为便签',
       'status.saving': '保存中…',
+      'status.favorited': '已收藏，已排到最前',
+      'status.unfavorited': '已取消收藏',
+      'status.scopeGlobal': '已设为全局',
+      'status.scopeSession': '已设为会话便签',
       'capture.message': '收藏这条回复为便签',
       'capture.selection': '存为便签',
       'capture.needSession': '请先打开一个会话',
@@ -221,8 +253,14 @@ window.__ModuleLoader__.load({
       'list.new': 'New note',
       'list.captureSession': 'Save whole chat',
       'list.refresh': 'Refresh',
+      'list.count': 'Number of notes',
       'row.global': 'Global',
       'row.session': 'Chat',
+      'row.favorite': 'Favorite',
+      'row.unfavorite': 'Unfavorite',
+      'row.insert': 'Insert into chat',
+      'row.makeGlobal': 'Make global',
+      'row.makeSession': 'Make private',
       'detail.back': 'Back',
       'detail.insert': 'Insert',
       'detail.insertSelection': 'Insert selection',
@@ -248,6 +286,10 @@ window.__ModuleLoader__.load({
       'status.deleted': 'Deleted',
       'status.captured': 'Saved as a note',
       'status.saving': 'Saving…',
+      'status.favorited': 'Favorited — moved to the top',
+      'status.unfavorited': 'Removed from favorites',
+      'status.scopeGlobal': 'Now visible everywhere',
+      'status.scopeSession': 'Now chat-only',
       'capture.message': 'Save this reply as a note',
       'capture.selection': 'Pin note',
       'capture.needSession': 'Open a chat first',
@@ -569,6 +611,26 @@ window.__ModuleLoader__.load({
             return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
           }
         },
+        async setFavorite(id, sessionId, favorite) {
+          try {
+            const carried = await remote.setFavorite({ id, sessionId: sessionId ?? null, favorite })
+            if (!carried.ok) return { ok: false, error: { code: 'transport', message: carried.error?.message ?? 'failed' } }
+            if (carried.value.ok) store.markDirty()
+            return carried.value
+          } catch (error) {
+            return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
+          }
+        },
+        async setScope(id, sessionId, scope) {
+          try {
+            const carried = await remote.setScope({ id, sessionId: sessionId ?? null, scope })
+            if (!carried.ok) return { ok: false, error: { code: 'transport', message: carried.error?.message ?? 'failed' } }
+            if (carried.value.ok) store.markDirty()
+            return carried.value
+          } catch (error) {
+            return { ok: false, error: { code: 'transport', message: error instanceof Error ? error.message : String(error) } }
+          }
+        },
         async captureMessage(sessionId, messageId) {
           try {
             const carried = await remote.captureMessage({ sessionId, messageId })
@@ -603,14 +665,14 @@ window.__ModuleLoader__.load({
 
     // ── icons ──────────────────────────────────────────────────────────────
 
-    function icon(paths, size = 16) {
+    function icon(paths, size = 16, filled = false) {
       return h(
         'svg',
         {
           width: size,
           height: size,
           viewBox: '0 0 24 24',
-          fill: 'none',
+          fill: filled ? 'currentColor' : 'none',
           stroke: 'currentColor',
           strokeWidth: 1.7,
           strokeLinecap: 'round',
@@ -632,31 +694,82 @@ window.__ModuleLoader__.load({
     const IconEdit = (props) => icon(['M4 20h4l10-10a2.5 2.5 0 0 0-3.5-3.5L4 16.5V20Z', 'M13.5 6.5l3.5 3.5'], props?.size ?? 16)
     const IconRefresh = (props) => icon(['M20 12a8 8 0 1 1-2.3-5.7', 'M20 4v5h-5'], props?.size ?? 16)
     const IconChat = (props) => icon(['M4 5h16v11H9l-4 3V5Z'], props?.size ?? 16)
+    const IconStar = (props) =>
+      icon(['M12 3.6l2.55 5.17 5.7.83-4.13 4.03.98 5.68L12 16.62l-5.1 2.69.98-5.68L3.75 9.6l5.7-.83L12 3.6Z'], props?.size ?? 16, props?.filled === true)
 
     // ── list ───────────────────────────────────────────────────────────────
 
-    /** The collapsed note row: title, one-line preview, and its visibility. */
-    function NoteRow({ note, selected, t, onOpen }) {
+    /**
+     * One collapsed note row: a full-row open target plus inline actions for
+     * insert / favorite / visibility, so the list never needs the detail view.
+     */
+    function NoteRow({ note, t, busy, onOpen, onInsert, onFavorite, onScope }) {
+      const favoriteLabel = note.favorite ? t('row.unfavorite') : t('row.favorite')
+      const scopeLabel = note.scope === 'global' ? t('row.makeSession') : t('row.makeGlobal')
       return h(
-        'button',
+        'div',
         {
-          type: 'button',
           className: 'dsn-row',
-          'data-selected': selected || undefined,
-          onClick: () => onOpen(note.id),
-          title: note.title,
+          'data-favorite': note.favorite || undefined,
+          'data-busy': busy || undefined,
         },
-        h('div', { className: 'dsn-title' }, note.title),
-        note.snippet.length > 0 ? h('div', { className: 'dsn-snippet' }, note.snippet) : null,
         h(
-          'div',
-          { className: 'dsn-meta' },
+          'button',
+          { type: 'button', className: 'dsn-row-open', onClick: () => onOpen(note.id), title: note.title },
+          h('span', { className: 'dsn-title' }, note.title),
+          note.snippet.length > 0 ? h('span', { className: 'dsn-snippet' }, note.snippet) : null,
           h(
             'span',
-            { className: 'dsn-chip', 'data-global': note.scope === 'global' || undefined },
-            note.scope === 'global' ? t('row.global') : t('row.session'),
+            { className: 'dsn-meta' },
+            h(
+              'span',
+              { className: 'dsn-chip', 'data-global': note.scope === 'global' || undefined },
+              note.scope === 'global' ? t('row.global') : t('row.session'),
+            ),
+            h('span', { className: 'dsn-time' }, formatTime(note.updatedAt)),
           ),
-          h('span', { className: 'dsn-time' }, formatTime(note.updatedAt)),
+        ),
+        h(
+          'div',
+          { className: 'dsn-row-actions' },
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn dsn-iconbtn-sm',
+              'data-active': note.favorite || undefined,
+              title: favoriteLabel,
+              'aria-label': favoriteLabel,
+              'aria-pressed': note.favorite ? 'true' : 'false',
+              disabled: busy,
+              onClick: () => onFavorite(note),
+            },
+            h(IconStar, { size: 15, filled: note.favorite }),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn dsn-iconbtn-sm',
+              title: t('row.insert'),
+              'aria-label': t('row.insert'),
+              disabled: busy,
+              onClick: () => onInsert(note),
+            },
+            h(IconInsert, { size: 15 }),
+          ),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn dsn-iconbtn-sm',
+              title: scopeLabel,
+              'aria-label': scopeLabel,
+              disabled: busy,
+              onClick: () => onScope(note),
+            },
+            h(IconGlobe, { size: 15 }),
+          ),
         ),
       )
     }
@@ -670,10 +783,21 @@ window.__ModuleLoader__.load({
       const [openId, setOpenId] = useState(null)
       const [editor, setEditor] = useState(null)
       const [busy, setBusy] = useState(false)
+      const [busyId, setBusyId] = useState(null)
+      const [status, setStatus] = useState(null)
 
       useEffect(() => {
         void store.load(sessionId ?? null)
       }, [sessionId, view.dirty])
+
+      useEffect(() => {
+        if (status === null) return undefined
+        const timer = setTimeout(() => setStatus(null), 2400)
+        return () => clearTimeout(timer)
+      }, [status])
+
+      /** Show one transient status line; `error` switches it to the error tone. */
+      const notify = (text, error = false) => setStatus({ text, error })
 
       const items = useMemo(() => {
         const term = query.trim().toLowerCase()
@@ -698,8 +822,52 @@ window.__ModuleLoader__.load({
         setBusy(true)
         const result = await store.captureSession(sessionId)
         setBusy(false)
-        if (!result.ok) return
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        notify(t('status.captured'))
         setFilter('session')
+      }
+
+      /** Read one note's body and append it to the current composer. */
+      const insertNote = async (note) => {
+        setBusyId(note.id)
+        const detail = await store.read(note.id, sessionId)
+        setBusyId(null)
+        if (!detail.ok) {
+          notify(detail.message ?? t('error.notFound'), true)
+          return
+        }
+        const full = detail.value.note
+        const result = insertIntoComposer(ctx, sessionId, `## ${full.title}\n\n${full.body}`)
+        if (result.ok) notify(t('status.inserted'))
+        else if (result.code === 'no-session') notify(t('insert.noSession'), true)
+        else if (result.code === 'no-composer') notify(t('insert.noComposer'), true)
+        else notify(t('insert.failed'), true)
+      }
+
+      const toggleFavorite = async (note) => {
+        setBusyId(note.id)
+        const result = await store.setFavorite(note.id, sessionId, !note.favorite)
+        setBusyId(null)
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        notify(note.favorite ? t('status.unfavorited') : t('status.favorited'))
+      }
+
+      const toggleScope = async (note) => {
+        const next = note.scope === 'global' ? 'session' : 'global'
+        setBusyId(note.id)
+        const result = await store.setScope(note.id, sessionId, next)
+        setBusyId(null)
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        notify(next === 'global' ? t('status.scopeGlobal') : t('status.scopeSession'))
       }
 
       if (editor !== null) {
@@ -727,6 +895,7 @@ window.__ModuleLoader__.load({
                 })
             setBusy(false)
             if (!result.ok) return failureText(result, t)
+            notify(t('status.saved'))
             setEditor(null)
             if (editor.mode !== 'new') setOpenId(editor.note.id)
             return null
@@ -768,6 +937,7 @@ window.__ModuleLoader__.load({
             { type: 'button', className: 'dsn-seg', 'data-active': filter === 'global' || undefined, onClick: () => setFilter('global') },
             t('filter.global'),
           ),
+          h('span', { className: 'dsn-count', title: t('list.count') }, String(items.length)),
           h('span', { className: 'dsn-spacer' }),
           h(
             'button',
@@ -796,17 +966,70 @@ window.__ModuleLoader__.load({
             onChange: (event) => setQuery(event.target.value),
           }),
         ),
+        status !== null
+          ? h(
+              'div',
+              {
+                className: 'dsn-status',
+                role: 'status',
+                'data-success': status.error ? undefined : true,
+                'data-error': status.error || undefined,
+              },
+              status.text,
+            )
+          : null,
         view.error !== null ? h('div', { className: 'dsn-error', role: 'alert' }, view.error) : null,
         h(
           'div',
           { className: 'dsn-scroll' },
           view.status === 'loading' && view.items.length === 0
-            ? h('div', { className: 'dsn-empty' }, t('status.loading'))
+            ? h(
+                'div',
+                { className: 'dsn-empty' },
+                h('span', { className: 'dsn-empty-icon' }, h(IconRefresh, { size: 22 })),
+                h('p', { className: 'dsn-empty-text' }, t('status.loading')),
+              )
             : null,
           view.status !== 'loading' && items.length === 0
-            ? h('div', { className: 'dsn-empty' }, query.trim().length > 0 ? t('filter.noResults') : emptyText)
+            ? h(
+                'div',
+                { className: 'dsn-empty' },
+                h('span', { className: 'dsn-empty-icon' }, h(IconNote, { size: 26 })),
+                h('p', { className: 'dsn-empty-text' }, query.trim().length > 0 ? t('filter.noResults') : emptyText),
+                query.trim().length === 0
+                  ? h(
+                      'div',
+                      { className: 'dsn-empty-actions' },
+                      filter === 'session'
+                        ? h(
+                            'button',
+                            { type: 'button', className: 'dsn-btn', 'data-primary': true, disabled: busy, onClick: () => void captureSession() },
+                            h(IconChat, { size: 14 }),
+                            t('list.captureSession'),
+                          )
+                        : null,
+                      h(
+                        'button',
+                        { type: 'button', className: 'dsn-btn', onClick: startNew },
+                        h(IconPlus, { size: 14 }),
+                        t('list.new'),
+                      ),
+                    )
+                  : null,
+              )
             : null,
-          items.map((note) => h(NoteRow, { key: note.id, note, t, selected: false, onOpen: open })),
+          items.map((note) =>
+            h(NoteRow, {
+              key: note.id,
+              note,
+              t,
+              busy: busyId === note.id,
+              onOpen: open,
+              onInsert: (row) => void insertNote(row),
+              onFavorite: (row) => void toggleFavorite(row),
+              onScope: (row) => void toggleScope(row),
+            }),
+          ),
         ),
       )
     }
@@ -843,6 +1066,9 @@ window.__ModuleLoader__.load({
         return () => clearTimeout(timer)
       }, [status])
 
+      /** Show one transient status line; `error` switches it to the error tone. */
+      const notify = (text, error = false) => setStatus({ text, error })
+
       if (note === null) {
         return h(
           'div',
@@ -854,10 +1080,10 @@ window.__ModuleLoader__.load({
 
       const insert = (text) => {
         const result = insertIntoComposer(ctx, sessionId, text)
-        if (result.ok) setStatus(t('status.inserted'))
-        else if (result.code === 'no-session') setStatus(t('insert.noSession'))
-        else if (result.code === 'no-composer') setStatus(t('insert.noComposer'))
-        else setStatus(t('insert.failed'))
+        if (result.ok) notify(t('status.inserted'))
+        else if (result.code === 'no-session') notify(t('insert.noSession'), true)
+        else if (result.code === 'no-composer') notify(t('insert.noComposer'), true)
+        else notify(t('insert.failed'), true)
       }
 
       const insertSelection = () => {
@@ -872,7 +1098,7 @@ window.__ModuleLoader__.load({
           text = ''
         }
         if (text.trim().length === 0) {
-          setStatus(t('capture.needSelection'))
+          notify(t('capture.needSelection'), true)
           return
         }
         insert(text)
@@ -881,23 +1107,35 @@ window.__ModuleLoader__.load({
       const copy = async () => {
         try {
           await navigator.clipboard.writeText(note.body)
-          setStatus(t('status.copied'))
+          notify(t('status.copied'))
         } catch {
-          setStatus(t('error.generic'))
+          notify(t('error.generic'), true)
         }
+      }
+
+      const toggleFavorite = async () => {
+        setBusy(true)
+        const result = await store.setFavorite(note.id, sessionId, !note.favorite)
+        setBusy(false)
+        if (!result.ok) {
+          notify(failureText(result, t), true)
+          return
+        }
+        setNote({ ...note, favorite: !note.favorite })
+        notify(!note.favorite ? t('status.favorited') : t('status.unfavorited'))
       }
 
       const toggleScope = async () => {
         setBusy(true)
         const scope = note.scope === 'global' ? 'session' : 'global'
-        const result = await store.update({ id: note.id, title: note.title, body: note.body, scope, sessionId })
+        const result = await store.setScope(note.id, sessionId, scope)
         setBusy(false)
         if (!result.ok) {
-          setStatus(failureText(result, t))
+          notify(failureText(result, t), true)
           return
         }
-        setNote({ ...note, scope })
-        setStatus(t('status.saved'))
+        setNote({ ...note, scope, path: result.value?.note?.path ?? note.path })
+        notify(scope === 'global' ? t('status.scopeGlobal') : t('status.scopeSession'))
       }
 
       const remove = async () => {
@@ -909,7 +1147,7 @@ window.__ModuleLoader__.load({
         const result = await store.remove(note.id, sessionId)
         setBusy(false)
         if (!result.ok) {
-          setStatus(failureText(result, t))
+          notify(failureText(result, t), true)
           return
         }
         onBack()
@@ -923,6 +1161,20 @@ window.__ModuleLoader__.load({
           { className: 'dsn-detail-head' },
           h('button', { type: 'button', className: 'dsn-iconbtn', onClick: onBack, title: t('detail.back'), 'aria-label': t('detail.back') }, h(IconBack, { size: 16 })),
           h('span', { className: 'dsn-detail-title', title: note.title }, note.title),
+          h(
+            'button',
+            {
+              type: 'button',
+              className: 'dsn-iconbtn',
+              'data-active': note.favorite || undefined,
+              title: note.favorite ? t('row.unfavorite') : t('row.favorite'),
+              'aria-label': note.favorite ? t('row.unfavorite') : t('row.favorite'),
+              'aria-pressed': note.favorite ? 'true' : 'false',
+              disabled: busy,
+              onClick: () => void toggleFavorite(),
+            },
+            h(IconStar, { size: 16, filled: note.favorite }),
+          ),
           h('button', { type: 'button', className: 'dsn-iconbtn', onClick: () => onEdit(note), title: t('detail.edit'), 'aria-label': t('detail.edit') }, h(IconEdit, { size: 15 })),
         ),
         h(
@@ -936,7 +1188,18 @@ window.__ModuleLoader__.load({
           ),
           h('div', { className: 'dsn-md', dangerouslySetInnerHTML: { __html: renderMarkdown(note.body) } }),
         ),
-        status !== null ? h('div', { className: 'dsn-status', role: 'status' }, status) : null,
+        status !== null
+          ? h(
+              'div',
+              {
+                className: 'dsn-detail-status',
+                role: 'status',
+                'data-success': status.error ? undefined : true,
+                'data-error': status.error || undefined,
+              },
+              status.text,
+            )
+          : null,
         h(
           'div',
           { className: 'dsn-actions' },
