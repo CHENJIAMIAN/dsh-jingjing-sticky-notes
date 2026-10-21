@@ -94,20 +94,25 @@ window.__ModuleLoader__.load({
 .dsn-row{position:relative;background:var(--dsw-alias-bg-layer-1);border:1px solid var(--dsw-alias-border-l1);border-radius:12px;margin:0 0 8px;box-shadow:0 1px 2px rgba(0,0,0,.05);transition:border-color 150ms ease,box-shadow 150ms ease,opacity 150ms ease}
 .dsn-row:hover{border-color:var(--dsw-alias-border-l2);box-shadow:0 3px 10px rgba(0,0,0,.10)}
 .dsn-row:focus-within{border-color:var(--dsw-alias-border-l2)}
-.dsn-row[data-favorite]{box-shadow:inset 3px 0 0 var(--dsw-alias-brand-primary),0 1px 2px rgba(0,0,0,.05)}
-.dsn-row[data-favorite]:hover{box-shadow:inset 3px 0 0 var(--dsw-alias-brand-primary),0 3px 10px rgba(0,0,0,.10)}
+.dsn-row[data-favorite]::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--dsw-alias-brand-primary);border-radius:12px 0 0 12px;pointer-events:none;z-index:1}
 .dsn-row[data-busy]{opacity:.75}
-.dsn-row-open{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:10px 12px 2px;border-radius:12px 12px 0 0;cursor:pointer}
+.dsn-row-open{appearance:none;display:block;width:100%;text-align:left;background:transparent;border:none;color:inherit;font:inherit;padding:10px 12px 8px;border-radius:12px 12px 0 0;cursor:pointer}
 .dsn-row-open:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
 .dsn-title{display:block;font-size:13px;font-weight:600;line-height:1.45;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .dsn-snippet{color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.45;margin-top:2px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
-.dsn-row-foot{display:flex;align-items:center;gap:8px;padding:2px 8px 8px 12px;min-width:0}
-.dsn-meta{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;flex:1;overflow:hidden}
+/* The card tail is one capsule strip: a clickable text cell on the left, then
+   a divided action group. Cell widths follow content instead of splitting evenly. */
+.dsn-row-foot{display:flex;align-items:stretch;min-width:0;min-height:36px;border-top:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:0 0 11px 11px;overflow:hidden}
+.dsn-meta{appearance:none;border:none;background:transparent;display:flex;align-items:center;gap:6px;font:inherit;font-size:11px;color:var(--dsw-alias-label-secondary);min-width:0;flex:1;overflow:hidden;padding:0 10px;text-align:left;cursor:pointer}
+.dsn-meta:hover{color:var(--dsw-alias-label-primary)}
+.dsn-meta:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
 .dsn-chip{font-size:10.5px;line-height:16px;padding:0 6px;border-radius:6px;border:1px solid var(--dsw-alias-border-l1);color:var(--dsw-alias-label-secondary);white-space:nowrap;flex:none}
 .dsn-chip[data-global]{border-color:var(--dsw-alias-brand-primary);color:var(--dsw-alias-brand-primary)}
 .dsn-time{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dsn-row-actions{display:flex;align-items:center;gap:2px;flex:none}
-.dsn-row-actions .dsn-iconbtn{width:30px;height:30px;border-radius:9px}
+.dsn-row-actions{display:flex;align-items:stretch;flex:none;margin-left:auto}
+.dsn-row-actions .dsn-iconbtn{width:34px;height:auto;min-height:36px;border-radius:0;border-left:1px solid var(--dsw-alias-border-l1)}
+.dsn-row-actions .dsn-iconbtn:hover{background:var(--dsw-alias-bg-layer-1)}
+.dsn-row-actions .dsn-iconbtn:focus-visible{outline-offset:-2px}
 .dsn-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:44px 18px;text-align:center;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.8}
 .dsn-empty-icon{opacity:.6}
 .dsn-empty-text{white-space:pre-line;margin:0}
@@ -117,8 +122,9 @@ window.__ModuleLoader__.load({
 .dsn-status[data-success]{color:var(--dsw-alias-state-success-primary)}
 .dsn-status[data-error]{color:var(--dsw-alias-state-error-primary)}
 .dsn-detail{flex:1;min-height:0;display:flex;flex-direction:column}
-.dsn-detail-head{display:flex;align-items:center;gap:2px;padding:6px 8px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
-.dsn-detail-title{flex:1;min-width:0;font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.dsn-detail-head{display:flex;align-items:center;gap:2px;padding:8px;min-height:52px;border-bottom:1px solid var(--dsw-alias-border-l1);flex:none}
+.dsn-detail-head .dsn-iconbtn{width:36px;height:36px;border-radius:10px}
+.dsn-detail-title{flex:1;min-width:0;font-size:15px;font-weight:600;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 6px}
 .dsn-detail-body{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 20px;user-select:text}
 .dsn-detail-meta{font-size:11px;color:var(--dsw-alias-label-secondary);line-height:1.6;margin-bottom:8px;word-break:break-all}
 .dsn-actions{flex:none;display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--dsw-alias-border-l1)}
@@ -730,8 +736,8 @@ window.__ModuleLoader__.load({
           'div',
           { className: 'dsn-row-foot' },
           h(
-            'span',
-            { className: 'dsn-meta' },
+            'button',
+            { type: 'button', className: 'dsn-meta', title: note.title, onClick: () => onOpen(note.id) },
             h(
               'span',
               { className: 'dsn-chip', 'data-global': note.scope === 'global' || undefined },
@@ -1126,7 +1132,7 @@ window.__ModuleLoader__.load({
         return h(
           'div',
           { className: 'dsn-pane', 'data-dsn-ignore-capture': true },
-          h('div', { className: 'dsn-detail-head' }, h('button', { type: 'button', className: 'dsn-iconbtn', onClick: onBack, title: t('detail.back'), 'aria-label': t('detail.back') }, h(IconBack, { size: 16 }))),
+          h('div', { className: 'dsn-detail-head' }, h('button', { type: 'button', className: 'dsn-iconbtn', onClick: onBack, title: t('detail.back'), 'aria-label': t('detail.back') }, h(IconBack, { size: 20 }))),
           h('div', { className: 'dsn-empty' }, error ?? t('status.loading')),
         )
       }
@@ -1212,7 +1218,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'dsn-detail-head' },
-          h('button', { type: 'button', className: 'dsn-iconbtn', onClick: onBack, title: t('detail.back'), 'aria-label': t('detail.back') }, h(IconBack, { size: 16 })),
+          h('button', { type: 'button', className: 'dsn-iconbtn', onClick: onBack, title: t('detail.back'), 'aria-label': t('detail.back') }, h(IconBack, { size: 20 })),
           h('span', { className: 'dsn-detail-title', title: note.title }, note.title),
           h(
             'button',
@@ -1226,9 +1232,9 @@ window.__ModuleLoader__.load({
               disabled: busy,
               onClick: () => void toggleFavorite(),
             },
-            h(IconStar, { size: 16, filled: note.favorite }),
+            h(IconStar, { size: 19, filled: note.favorite }),
           ),
-          h('button', { type: 'button', className: 'dsn-iconbtn', onClick: () => onEdit(note), title: t('detail.edit'), 'aria-label': t('detail.edit') }, h(IconEdit, { size: 15 })),
+          h('button', { type: 'button', className: 'dsn-iconbtn', onClick: () => onEdit(note), title: t('detail.edit'), 'aria-label': t('detail.edit') }, h(IconEdit, { size: 19 })),
         ),
         h(
           'div',
@@ -1299,7 +1305,7 @@ window.__ModuleLoader__.load({
         h(
           'div',
           { className: 'dsn-detail-head' },
-          h('button', { type: 'button', className: 'dsn-iconbtn', onClick: onCancel, title: t('editor.cancel'), 'aria-label': t('editor.cancel') }, h(IconBack, { size: 16 })),
+          h('button', { type: 'button', className: 'dsn-iconbtn', onClick: onCancel, title: t('editor.cancel'), 'aria-label': t('editor.cancel') }, h(IconBack, { size: 18 })),
           h('span', { className: 'dsn-detail-title' }, mode === 'new' ? t('editor.newTitle') : t('editor.editTitle')),
         ),
         h(
