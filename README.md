@@ -28,6 +28,8 @@ dsh plugin --profile desktop add link:D:/Project/self_project/dsh-sticky-notes
 
 或用插件管理器安装这个目录，然后**刷新页面**（Host 侧重启后生效，浏览器半需重新加载）。
 
+> 桌面端如果没把 `dsh` 加进 PATH，直接用应用内「插件管理器」安装本目录即可，效果相同。
+
 ## 开发
 
 本目录就是源码仓库，profile 里以 `link:` 方式安装，改这里的文件即改运行中的插件。
