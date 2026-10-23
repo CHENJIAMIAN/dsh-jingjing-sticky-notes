@@ -89,6 +89,30 @@ again, this panel is your scratch pad.
 
 ## Preview
 
+![Animation: save a sticky note, browse the sidebar, compare notes in floating windows, and insert them back into the conversation](docs/images/demo.gif)
+
+*Save as a note → browse in the sidebar → compare in floating windows → insert back into the conversation.*
+
+### Notes list beside the conversation
+
+![Chat with the sticky notes list in the right sidebar](docs/images/notes-panel.png)
+
+*Conversation on the left, notes panel on the right: Workspace / Session / Global views, with favorite, float, insert, visibility and delete actions on every card.*
+
+### Note detail
+
+![Note detail with the insert action bar](docs/images/note-detail.png)
+
+*Edit the title and body, then use the action bar to insert the whole note or a selection, insert it as a file, copy it, switch its scope, or move it to the recycle bin.*
+
+### Floating notes
+
+![Two floating sticky notes above the conversation](docs/images/floating-notes.png)
+
+*Open several floating notes to compare long content; they can be dragged, resized, and docked back into the sidebar.*
+
+### Card actions
+
 ```
 ┌─────────────────────────┊──────────────┐
 │ Note title               ┊  ☆    ⧉    ↓   │
