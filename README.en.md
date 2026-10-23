@@ -1,14 +1,26 @@
-# Jingjing Sticky Notes · dsh-jingjing-sticky-notes
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/icon.svg" width="88" height="88" alt="Jingjing Sticky Notes icon">
+</p>
 
-<p align="center"><img src="icon.svg" width="88" height="88" alt="dsh-jingjing-sticky-notes"></p>
+<h1 align="center">Jingjing Sticky Notes · dsh-jingjing-sticky-notes</h1>
 
 <p align="center">
   <b>Pin what matters from a conversation as Markdown notes, ready when you need them.</b>
 </p>
 
 <p align="center">
-  English · <a href="README.md">简体中文</a>
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes"><img src="https://img.shields.io/github/stars/tryqylz/dsh-jingjing-sticky-notes?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"></a>
+  <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/DSH-0.2.x-4D6BFE.svg" alt="DeepSeek Harness 0.2.x"></a>
 </p>
+
+<p align="center">
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes">GitHub</a> ·
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/issues">Issues</a> ·
+  English · <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/README.md">简体中文</a>
+</p>
+
+> **Code credit**: most of the code in this plugin was written by `deepseek-flash-v4.1-1017` (Jingjing).
 
 ---
 
@@ -89,25 +101,25 @@ again, this panel is your scratch pad.
 
 ## Preview
 
-![Animation: save a sticky note, browse the sidebar, compare notes in floating windows, and insert them back into the conversation](docs/images/demo.gif)
+![Animation: save a sticky note, browse the sidebar, compare notes in floating windows, and insert them back into the conversation](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/demo.gif)
 
 *Save as a note → browse in the sidebar → compare in floating windows → insert back into the conversation.*
 
 ### Notes list beside the conversation
 
-![Chat with the sticky notes list in the right sidebar](docs/images/notes-panel.png)
+![Chat with the sticky notes list in the right sidebar](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/notes-panel.png)
 
 *Conversation on the left, notes panel on the right: Workspace / Session / Global views, with favorite, float, insert, visibility and delete actions on every card.*
 
 ### Note detail
 
-![Note detail with the insert action bar](docs/images/note-detail.png)
+![Note detail with the insert action bar](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/note-detail.png)
 
 *Edit the title and body, then use the action bar to insert the whole note or a selection, insert it as a file, copy it, switch its scope, or move it to the recycle bin.*
 
 ### Floating notes
 
-![Two floating sticky notes above the conversation](docs/images/floating-notes.png)
+![Two floating sticky notes above the conversation](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/floating-notes.png)
 
 *Open several floating notes to compare long content; they can be dragged, resized, and docked back into the sidebar.*
 
@@ -128,25 +140,45 @@ again, this panel is your scratch pad.
 
 ## Installation
 
-Requires DeepSeek Harness desktop 0.2.x (developed against `0.2.1-rc.2`). No extra dependencies.
+Requires DeepSeek Harness 0.2.x (desktop and Web; developed against `0.2.1-rc.2`). No extra runtime dependencies.
 
-### Plugin manager (recommended)
-
-Install this directory from the in-app plugin manager, then **fully restart the client**.
-
-### Command line
+### From npm
 
 ```sh
+# desktop
+dsh plugin --profile desktop add dsh-jingjing-sticky-notes
+
+# Web (dsh web)
+dsh plugin --profile web add dsh-jingjing-sticky-notes
+```
+
+Or use **Plugins → Add plugin** in the app and enter the package name `dsh-jingjing-sticky-notes`.
+
+> If npm does not serve this package yet (for example before a release), install the same code from GitHub below.
+
+### From GitHub
+
+```sh
+dsh plugin --profile desktop add "git+https://github.com/tryqylz/dsh-jingjing-sticky-notes.git#main"
+```
+
+### From a local checkout (development)
+
+```sh
+git clone https://github.com/tryqylz/dsh-jingjing-sticky-notes.git
 dsh plugin --profile desktop add link:/absolute/path/to/dsh-jingjing-sticky-notes
 ```
 
 > On Windows write the path as `link:D:/path/to/dsh-jingjing-sticky-notes`.
-> If the desktop app has not added `dsh` to PATH, installing through the plugin manager has the same
-> effect.
+> If `dsh` is not on PATH, install this directory from the in-app plugin manager instead, then **fully restart the client**.
 
-After installation, the Host half needs a full client restart; the Client half only needs a page
-reload.
+After installation the Host half needs a full client restart; the Client half only needs a page reload.
 
+### Uninstall
+
+```sh
+dsh plugin --profile desktop remove dsh-jingjing-sticky-notes
+```
 ## Usage
 
 1. Open the notes panel: click the note icon next to the chat title, or the "Sticky Notes" tab in the
@@ -255,8 +287,15 @@ An absolute `projectDirectory` or one containing `..` falls back to the default 
 
 ## Development
 
-This directory is the source repository; the profile installs it through a `link:`, so editing files
-here edits the running plugin.
+Source repository: <https://github.com/tryqylz/dsh-jingjing-sticky-notes>
+
+For local development clone the repository, install it into a profile through a `link:`, and edit the
+files here to change the running plugin:
+
+```sh
+git clone https://github.com/tryqylz/dsh-jingjing-sticky-notes.git
+dsh plugin --profile desktop add link:D:/path/to/dsh-jingjing-sticky-notes
+```
 
 | File | Purpose |
 |---|---|
@@ -279,7 +318,7 @@ here edits the running plugin.
 
 ## Compatibility
 
-- Targets DeepSeek Harness desktop 0.2.x (developed against `0.2.1-rc.2`);
+- Targets DeepSeek Harness 0.2.x (desktop and Web; developed against `0.2.1-rc.2`);
 - The Host uses only Node built-ins plus host-provided peer dependencies (`@deepseek-ai/cordis`,
   `dsh-session`, `dsh-typert-protocol`);
 - The Client depends only on the host-injected `react` and bundles nothing extra.
@@ -319,8 +358,13 @@ here edits the running plugin.
   Use the reply capture button when the exact source matters;
 - Note contents are never translated when the UI language changes — existing files stay as written.
 
+## Feedback
+
+- Bugs and feature requests: <https://github.com/tryqylz/dsh-jingjing-sticky-notes/issues>
+- If this plugin helps you, a Star is appreciated ⭐
+
 ## License
 
-[MIT](LICENSE) © 2026 tryqylz
+[MIT](https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/LICENSE) © 2026 tryqylz
 
 Free to use, modify, distribute, and use commercially; keep the copyright notice and license text.

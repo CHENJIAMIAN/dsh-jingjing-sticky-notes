@@ -1,14 +1,26 @@
-# 鲸鲸便签 · Jingjing Sticky Notes
+<p align="center">
+  <img src="https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/icon.svg" width="88" height="88" alt="鲸鲸便签图标">
+</p>
 
-<p align="center"><img src="icon.svg" width="88" height="88" alt="dsh-jingjing-sticky-notes"></p>
+<h1 align="center">鲸鲸便签 · Jingjing Sticky Notes</h1>
 
 <p align="center">
   <b>把对话里重要的内容固定成 Markdown，随用随取。</b>
 </p>
 
 <p align="center">
-  <a href="README.en.md">English</a> · 简体中文
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes"><img src="https://img.shields.io/github/stars/tryqylz/dsh-jingjing-sticky-notes?style=social" alt="GitHub stars"></a>
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"></a>
+  <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/DSH-0.2.x-4D6BFE.svg" alt="DeepSeek Harness 0.2.x"></a>
 </p>
+
+<p align="center">
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes">GitHub</a> ·
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/issues">问题反馈</a> ·
+  <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/README.en.md">English</a> · 简体中文
+</p>
+
+> **代码来源**：本插件代码基本全部由 `deepseek-flash-v4.1-1017`（鲸鲸）编写。
 
 ---
 
@@ -62,25 +74,25 @@
 
 ## 界面预览
 
-![动图演示：存为便签、侧边栏查看、浮窗对照、插回会话](docs/images/demo.gif)
+![动图演示：存为便签、侧边栏查看、浮窗对照、插回会话](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/demo.gif)
 
 *动图演示：存为便签 → 侧边栏查看 → 浮窗对照 → 插回会话。*
 
 ### 便签列表与对话同屏
 
-![聊天对话页面与右侧栏中的便签列表](docs/images/notes-panel.png)
+![聊天对话页面与右侧栏中的便签列表](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/notes-panel.png)
 
 *左侧对话、右侧便签列表：工作区 / 会话 / 全局三个视图，卡片上可直接完成收藏、浮窗、插入、切换可见性和删除。*
 
 ### 便签详情
 
-![便签详情与插回会话操作条](docs/images/note-detail.png)
+![便签详情与插回会话操作条](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/note-detail.png)
 
 *详情页可编辑标题与正文；顶部操作条支持插入全文、插入选中、以文件插入、复制、设为全局和移到回收站。*
 
 ### 双浮窗对照
 
-![两个便签浮窗悬浮在对话上方](docs/images/floating-notes.png)
+![两个便签浮窗悬浮在对话上方](https://raw.githubusercontent.com/tryqylz/dsh-jingjing-sticky-notes/main/docs/images/floating-notes.png)
 
 *同时打开多个浮窗对照长内容；浮窗可拖动、缩放，也能停靠回右侧栏。*
 
@@ -101,23 +113,45 @@
 
 ## 安装
 
-要求：DeepSeek Harness 桌面端 0.2.x（开发环境为 `0.2.1-rc.2`），无需安装额外依赖。
+要求：DeepSeek Harness 0.2.x（桌面端 / Web 端，开发环境 `0.2.1-rc.2`），无额外运行时依赖。
 
-### 插件管理器（推荐）
-
-在应用内「插件管理器」中选择本目录安装，然后**完全重启客户端**。
-
-### 命令行
+### 从 npm 安装
 
 ```sh
+# 桌面端
+dsh plugin --profile desktop add dsh-jingjing-sticky-notes
+
+# Web 端（dsh web）
+dsh plugin --profile web add dsh-jingjing-sticky-notes
+```
+
+也可以在应用内「插件 → 添加插件」输入包名 `dsh-jingjing-sticky-notes` 安装。
+
+> 如果 npm 上暂时取不到这个包（例如尚未发布新版本），可以改用下面的 GitHub 方式安装同一份代码。
+
+### 从 GitHub 安装
+
+```sh
+dsh plugin --profile desktop add "git+https://github.com/tryqylz/dsh-jingjing-sticky-notes.git#main"
+```
+
+### 本地源码安装（开发）
+
+```sh
+git clone https://github.com/tryqylz/dsh-jingjing-sticky-notes.git
 dsh plugin --profile desktop add link:/absolute/path/to/dsh-jingjing-sticky-notes
 ```
 
 > Windows 下路径写作 `link:D:/path/to/dsh-jingjing-sticky-notes`。
-> 桌面端如果没有把 `dsh` 加进 PATH，用插件管理器安装效果相同。
+> 桌面端如果 `dsh` 不在 PATH，用应用内插件管理器选择本目录安装效果相同，然后**完全重启客户端**。
 
 安装后：Host 半需要完全重启客户端才会加载；Client 半刷新页面即可。
 
+### 卸载
+
+```sh
+dsh plugin --profile desktop remove dsh-jingjing-sticky-notes
+```
 ## 使用
 
 1. 打开便签页：点会话标题右侧的便签图标，或右侧栏的「便签」标签；
@@ -207,7 +241,14 @@ trashedAt: 1761000009999
 
 ## 开发
 
-本目录就是源码仓库，profile 里以 `link:` 方式安装，修改这里的文件即修改运行中的插件。
+源码仓库：<https://github.com/tryqylz/dsh-jingjing-sticky-notes>
+
+本地开发时把仓库 clone 下来，以 `link:` 方式装进 profile，修改这里的文件即修改运行中的插件：
+
+```sh
+git clone https://github.com/tryqylz/dsh-jingjing-sticky-notes.git
+dsh plugin --profile desktop add link:D:/path/to/dsh-jingjing-sticky-notes
+```
 
 | 文件 | 作用 |
 |---|---|
@@ -227,7 +268,7 @@ trashedAt: 1761000009999
 
 ## 兼容性
 
-- 面向 DeepSeek Harness 桌面端 0.2.x（开发环境 `0.2.1-rc.2`）；
+- 面向 DeepSeek Harness 0.2.x（桌面端 / Web 端，开发环境 `0.2.1-rc.2`）；
 - Host 侧只使用 Node 内置模块与宿主提供的 peer 依赖（`@deepseek-ai/cordis`、`dsh-session`、`dsh-typert-protocol`）；
 - Client 侧只依赖宿主注入的 `react`，不额外打包。
 
@@ -249,8 +290,13 @@ trashedAt: 1761000009999
 - 「存为便签」的 Markdown 是从渲染后的 DOM **重建**的：标题、列表、代码块、表格等结构会保留，但原文的标记写法（`*` 与 `_`、引用式链接、脚注、原始 HTML）会被归一化或退化；选区首尾的半块会补上所在标题 / 列表 / 引用 / 代码块的标记。要精确原文请用回复下方的收藏按钮；
 - 便签内容本身不会随界面语言翻译——已存下的文件保持原样。
 
+## 反馈
+
+- 遇到问题或有功能建议：<https://github.com/tryqylz/dsh-jingjing-sticky-notes/issues>
+- 如果这个插件对你有帮助，欢迎点个 Star ⭐
+
 ## 许可证
 
-[MIT](LICENSE) © 2026 tryqylz
+[MIT](https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/LICENSE) © 2026 tryqylz
 
 可以自由使用、修改、商用与再分发，保留版权声明与许可证文本即可。
