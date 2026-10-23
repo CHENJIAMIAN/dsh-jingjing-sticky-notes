@@ -1,17 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Sticky Notes">
-  <defs>
-    <linearGradient id="note" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFD97A"/>
-      <stop offset="1" stop-color="#F2B84B"/>
-    </linearGradient>
-  </defs>
-  <rect x="8" y="8" width="48" height="48" rx="9" fill="url(#note)"/>
-  <path d="M40 56 L56 40 L56 47 a9 9 0 0 1 -9 9 Z" fill="#D99A2B"/>
-  <g fill="#5A4210" opacity="0.9">
-    <rect x="17" y="20" width="24" height="3.2" rx="1.6"/>
-    <rect x="17" y="27.5" width="30" height="3.2" rx="1.6"/>
-    <rect x="17" y="35" width="19" height="3.2" rx="1.6"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 24 24" fill="none" role="img" aria-labelledby="icon-title">
+  <title id="icon-title">Jingjing Sticky Notes</title>
+  <path d="M6 2.5H18A3.5 3.5 0 0 1 21.5 6V16.5L16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V6A3.5 3.5 0 0 1 6 2.5Z" fill="#FFF4D6"/>
+  <path d="M16.5 21.5V18.5A2 2 0 0 1 18.5 16.5H21.5Z" fill="#7390D9"/>
+  <g stroke="#7390D9" stroke-width="1.35" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 2.5H18A3.5 3.5 0 0 1 21.5 6V16.5L16.5 21.5H6A3.5 3.5 0 0 1 2.5 18V6A3.5 3.5 0 0 1 6 2.5Z"/>
+    <path d="M16.5 21.5V18.5A2 2 0 0 1 18.5 16.5H21.5"/>
+    <path fill="#4D6BFE" stroke="none" d="M8.844 13.742C8.967 12.328 8.45 10.4 8.45 9.65C8.45 8.94 8.88 8.43 9.6 8.43C11.285 8.43 12.106 8.281 12.685 8.104C13.71 7.791 14.585 6.768 15.055 5.945C15.137 5.803 14.99 5.641 14.829 5.671C13.829 5.86 12.828 5.376 11.827 4.978C10.659 4.514 9.491 4.707 8.935 4.876C8.805 4.915 8.658 4.819 8.636 4.686C8.468 3.643 7.405 2.615 5.498 2.238C4.54 2.048 3.748 1.574 3.347 1.202C3.252 1.113 3.088 1.125 3.03 1.242C2.628 2.059 2.168 3.82 5.248 6.115C5.82 6.494 6.31 6.785 6.574 7.637C6.72 8.104 6.157 9.168 6.061 9.368C5.157 11.27 5.089 12.19 4.926 13.742" transform="translate(3.35 4) scale(0.95)"/>
   </g>
-  <circle cx="46" cy="18" r="6.5" fill="#4D6BFE"/>
-  <path d="M46 14.4 v3.2 M46 21.2 v0.4" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>
 </svg>
