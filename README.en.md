@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/dsh-jingjing-sticky-notes"><img src="https://img.shields.io/npm/v/dsh-jingjing-sticky-notes.svg" alt="npm version"></a>
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes"><img src="https://img.shields.io/github/stars/tryqylz/dsh-jingjing-sticky-notes?style=social" alt="GitHub stars"></a>
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"></a>
   <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/DSH-0.2.x-4D6BFE.svg" alt="DeepSeek Harness 0.2.x"></a>
@@ -16,6 +17,7 @@
 
 <p align="center">
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes">GitHub</a> ·
+  <a href="https://www.npmjs.com/package/dsh-jingjing-sticky-notes">npm</a> ·
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/issues">Issues</a> ·
   English · <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/README.md">简体中文</a>
 </p>
@@ -46,7 +48,7 @@ dsh plugin --profile web add dsh-jingjing-sticky-notes
 
 Or use **Plugins → Add plugin** in the app and enter the package name `dsh-jingjing-sticky-notes`.
 
-If npm does not serve this package yet, install the same code from GitHub:
+You can also install the same code from GitHub (for example to follow the latest commit, or when npm is unavailable):
 
 ```sh
 dsh plugin --profile desktop add "git+https://github.com/tryqylz/dsh-jingjing-sticky-notes.git#main"

@@ -9,6 +9,7 @@
 </p>
 
 <p align="center">
+  <a href="https://www.npmjs.com/package/dsh-jingjing-sticky-notes"><img src="https://img.shields.io/npm/v/dsh-jingjing-sticky-notes.svg" alt="npm version"></a>
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes"><img src="https://img.shields.io/github/stars/tryqylz/dsh-jingjing-sticky-notes?style=social" alt="GitHub stars"></a>
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License"></a>
   <a href="https://github.com/deepseek-ai/deepseek-harness"><img src="https://img.shields.io/badge/DSH-0.2.x-4D6BFE.svg" alt="DeepSeek Harness 0.2.x"></a>
@@ -16,6 +17,7 @@
 
 <p align="center">
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes">GitHub</a> ·
+  <a href="https://www.npmjs.com/package/dsh-jingjing-sticky-notes">npm</a> ·
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/issues">问题反馈</a> ·
   <a href="https://github.com/tryqylz/dsh-jingjing-sticky-notes/blob/main/README.en.md">English</a> · 简体中文
 </p>
@@ -43,7 +45,7 @@ dsh plugin --profile web add dsh-jingjing-sticky-notes
 
 也可以在应用内「插件 → 添加插件」输入包名 `dsh-jingjing-sticky-notes` 安装。
 
-npm 上暂时取不到这个包时，可以从 GitHub 安装同一份代码：
+也可以从 GitHub 安装同一份代码（例如想跟仓库最新提交，或 npm 暂时不可用时）：
 
 ```sh
 dsh plugin --profile desktop add "git+https://github.com/tryqylz/dsh-jingjing-sticky-notes.git#main"
