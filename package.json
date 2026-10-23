@@ -1,6 +1,6 @@
 {
-  "name": "dsh-sticky-notes",
-  "version": "1.6.0",
+  "name": "dsh-jingjing-sticky-notes",
+  "version": "1.7.0",
   "description": "把对话中的回复、选区或整段对话收藏为本地 Markdown 便签，并在右侧栏随时查看、对比与插回输入框。",
   "license": "MIT",
   "author": "tryqylz",

@@ -1,6 +1,6 @@
-# Sticky Notes · dsh-sticky-notes
+# Jingjing Sticky Notes · dsh-jingjing-sticky-notes
 
-<p align="center"><img src="icon.svg" width="88" height="88" alt="dsh-sticky-notes"></p>
+<p align="center"><img src="icon.svg" width="88" height="88" alt="dsh-jingjing-sticky-notes"></p>
 
 <p align="center">
   <b>Pin what matters from a conversation as Markdown notes, ready when you need them.</b>
@@ -113,10 +113,10 @@ Install this directory from the in-app plugin manager, then **fully restart the 
 ### Command line
 
 ```sh
-dsh plugin --profile desktop add link:/absolute/path/to/dsh-sticky-notes
+dsh plugin --profile desktop add link:/absolute/path/to/dsh-jingjing-sticky-notes
 ```
 
-> On Windows write the path as `link:D:/path/to/dsh-sticky-notes`.
+> On Windows write the path as `link:D:/path/to/dsh-jingjing-sticky-notes`.
 > If the desktop app has not added `dsh` to PATH, installing through the plugin manager has the same
 > effect.
 
@@ -149,6 +149,9 @@ Notes live in two places, and each store has its own recycle bin:
 | Global note (`scope: global`) | `~/.dsh/sticky-notes/notes/` | Shared across every project |
 | Workspace recycle bin | `<session working directory>/.dsh-notes/.trash/` | Notes deleted in this workspace; visible only here |
 | Global recycle bin | `~/.dsh/sticky-notes/notes/.trash/` | Notes deleted globally; visible from every project |
+
+> The package was renamed to `dsh-jingjing-sticky-notes` in 1.7.0; the storage paths above and the
+> plugin's internal ids are unchanged, so notes already on disk keep working.
 
 The session working directory comes from `SessionHeader.cwd` (the workspace path the session was
 created in).

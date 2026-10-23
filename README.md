@@ -1,6 +1,6 @@
-# 便签 · Sticky Notes
+# 鲸鲸便签 · Jingjing Sticky Notes
 
-<p align="center"><img src="icon.svg" width="88" height="88" alt="dsh-sticky-notes"></p>
+<p align="center"><img src="icon.svg" width="88" height="88" alt="dsh-jingjing-sticky-notes"></p>
 
 <p align="center">
   <b>把对话里重要的内容固定成 Markdown，随用随取。</b>
@@ -86,10 +86,10 @@
 ### 命令行
 
 ```sh
-dsh plugin --profile desktop add link:/absolute/path/to/dsh-sticky-notes
+dsh plugin --profile desktop add link:/absolute/path/to/dsh-jingjing-sticky-notes
 ```
 
-> Windows 下路径写作 `link:D:/path/to/dsh-sticky-notes`。
+> Windows 下路径写作 `link:D:/path/to/dsh-jingjing-sticky-notes`。
 > 桌面端如果没有把 `dsh` 加进 PATH，用插件管理器安装效果相同。
 
 安装后：Host 半需要完全重启客户端才会加载；Client 半刷新页面即可。
@@ -114,6 +114,8 @@ dsh plugin --profile desktop add link:/absolute/path/to/dsh-sticky-notes
 | 全局便签（`scope: global`） | `~/.dsh/sticky-notes/notes/` | 所有项目共享 |
 | 工作区回收站 | `<会话工作目录>/.dsh-notes/.trash/` | 本工作区删除的便签，只有本工作区可见 |
 | 全局回收站 | `~/.dsh/sticky-notes/notes/.trash/` | 全局删除的便签，所有项目可见 |
+
+> 1.7.0 起包名改为 `dsh-jingjing-sticky-notes`；上表的存储目录和插件内部 id 保持不变，已有便签不受影响。
 
 会话工作目录取自会话头（`SessionHeader.cwd`，即创建会话时的工作区路径）。
 

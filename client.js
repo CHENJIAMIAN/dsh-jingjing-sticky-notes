@@ -1,4 +1,4 @@
-// dsh-sticky-notes — browser half.
+// dsh-jingjing-sticky-notes — browser half.
 //
 // A right-Sidebar tab that lists the notes of the current workspace (grouped by
 // source Session, global notes on their own surface), a per-reply capture
@@ -9,7 +9,7 @@
 // Plain JavaScript on purpose: the file is served to the page as-is, so there
 // is no build step to keep in sync with the Host half.
 window.__ModuleLoader__.load({
-  id: 'dsh-sticky-notes',
+  id: 'dsh-jingjing-sticky-notes',
   factory(require) {
     const React = require('react')
     const h = React.createElement
@@ -20,8 +20,8 @@ window.__ModuleLoader__.load({
     const useCallback = React.useCallback
 
     const NS = 'stickyNotes'
-    const PACKAGE = 'dsh-sticky-notes'
-    const TAB_ID = 'dsh-sticky-notes'
+    const PACKAGE = 'dsh-jingjing-sticky-notes'
+    const TAB_ID = 'dsh-jingjing-sticky-notes'
     const TAB_KIND = 'sticky-notes'
 
     // A note opened outside the manager page is a resource tab: the address is

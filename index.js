@@ -1,4 +1,4 @@
-// dsh-sticky-notes — Host half.
+// dsh-jingjing-sticky-notes — Host half.
 //
 // A storage sidecar for the browser panel: it owns Markdown notes in two kinds
 // of stores — a global directory and one `.dsh-notes` directory per Session

@@ -68,7 +68,7 @@ function markdownOf(plugin, root, clipper = FULL_CLIP) {
 
 test('client contribution exposes its seats and debug internals', async () => {
   const { captured, plugin } = await loadClient()
-  assert.equal(captured.id, 'dsh-sticky-notes')
+  assert.equal(captured.id, 'dsh-jingjing-sticky-notes')
   assert.equal(typeof plugin.apply, 'function')
   // The array comes from another VM realm, so compare its contents, not identity.
   assert.deepEqual(Array.from(plugin.inject), ['slots', 'remote', 'locale', 'sessions', 'sidebarRightTabs', 'sidebarRight', 'uiSession'])
@@ -198,12 +198,12 @@ test('apply registers the note resource tab, its body, and its live title', asyn
 
   const noteType = definitions.find((definition) => definition.kind === 'sticky-note')
   assert.ok(noteType, 'note tab type was not registered')
-  assert.equal(noteType.id, 'dsh-sticky-notes/note')
+  assert.equal(noteType.id, 'dsh-jingjing-sticky-notes/note')
   assert.equal(noteType.canOpen('dsh-resource://sticky-note/abc123'), true)
   assert.equal(noteType.canOpen('dsh-resource://file/abc123'), false)
   assert.equal(noteType.title('dsh-resource://sticky-note/abc123'), 'default.title')
-  assert.ok(bodies.some((entry) => entry.config.key === 'dsh-sticky-notes/note'))
-  assert.ok(titles.some((entry) => entry.config.key === 'dsh-sticky-notes/note'))
+  assert.ok(bodies.some((entry) => entry.config.key === 'dsh-jingjing-sticky-notes/note'))
+  assert.ok(titles.some((entry) => entry.config.key === 'dsh-jingjing-sticky-notes/note'))
   assert.equal(styles.length, 1)
 })
 

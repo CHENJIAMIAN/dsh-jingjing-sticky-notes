@@ -1,8 +1,8 @@
-# dsh-sticky-notes bundle patch.
+# dsh-jingjing-sticky-notes bundle patch.
 #
 # One row hosts both halves: index.js is the Host service that owns the local
 # Markdown files, and the package's `dsh.client` declaration adds client.js to
-# the browser roster (served at /plugins/dsh-sticky-notes/client.js).
+# the browser roster (served at /plugins/dsh-jingjing-sticky-notes/client.js).
 #
 # A patch replaces the targeted row's whole `config`, so restate every key.
 # `directory: ''` keeps the global store at <DSH_HOME>/sticky-notes/notes.
@@ -10,7 +10,7 @@
 
 - insert:
     - id: sticky-notes
-      name: 'dsh-sticky-notes'
+      name: 'dsh-jingjing-sticky-notes'
       config:
         directory: ''
         projectDirectory: '.dsh-notes'

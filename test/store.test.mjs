@@ -47,7 +47,7 @@ function makeNote(overrides = {}) {
 
 /** One throwaway store root. */
 async function tempRoot(t) {
-  const base = await mkdtemp(join(tmpdir(), 'dsh-sticky-notes-'))
+  const base = await mkdtemp(join(tmpdir(), 'dsh-jingjing-sticky-notes-'))
   t.after(() => rm(base, { recursive: true, force: true }))
   return base
 }
