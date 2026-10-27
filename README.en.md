@@ -106,6 +106,18 @@ See [technical details](https://github.com/tryqylz/dsh-jingjing-sticky-notes/blo
   the newest note, with archived groups last;
 - A "Recycle bin" entry sits at the end of every list.
 
+### Math and GenUI cards (new)
+- Standard LaTeX in a note body is typeset instead of shown verbatim: inline `$…$`, `\(…\)` and
+  display `$$…$$`, `\[…\]`, including matrices, cases and `aligned`; dollar signs inside code spans
+  and fenced code stay literal;
+- KaTeX styles and all 20 woff2 fonts are inlined into `client.js`, so math renders offline and in
+  both themes;
+- A reply captured with a `dsh-ui` fence no longer shows raw JSON: the spec is rebuilt as headings,
+  cards, key/value rows, callouts, lists and tables, and the math inside it renders too; a fence that
+  is not a valid spec falls back to a plain code block;
+- The trade-off is about +640 KB on `client.js` (~140 KB → ~780 KB). The plugin still has zero runtime
+  dependencies; see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+
 ### Detail view
 - The action bar sits at the top: insert whole note, insert selection, insert as file, copy,
   make global / move to workspace, move to the recycle bin;

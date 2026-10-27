@@ -443,3 +443,48 @@ test('sessionDisplayTitle reads the catalog display title', async () => {
   assert.equal(title(null, 's1'), null)
   assert.equal(title(catalog, null), null)
 })
+
+test('renderMarkdown renders inline and display LaTeX through KaTeX', async () => {
+  const { plugin } = await loadClient()
+  const { renderMarkdown } = plugin.__internals
+
+  const inline = renderMarkdown('质能方程 $E=mc^2$，以及 \\( \\pi r^2 \\)。')
+  assert.match(inline, /class="katex"/)
+  assert.doesNotMatch(inline, /\$E=mc\^2\$/)
+
+  const display = renderMarkdown('推导：\n\n$$\n\\int_{0}^{1} x^{2}\\,dx = \\frac{1}{3}\n$$')
+  assert.match(display, /dsn-math-block/)
+  assert.match(display, /katex-display/)
+
+  // 代码里的美元符号是字面量，不该被当成公式
+  const code = renderMarkdown('用 `$x$` 表示变量。')
+  assert.doesNotMatch(code, /class="katex"/)
+  assert.match(code, /<code>\$x\$<\/code>/)
+
+  // 货币符号不误判
+  assert.doesNotMatch(renderMarkdown('价格 $5 和 $6 不算公式。'), /class="katex"/)
+})
+
+test('renderMarkdown turns a dsh-ui fence into readable layout, not raw JSON', async () => {
+  const { plugin } = await loadClient()
+  const { renderMarkdown } = plugin.__internals
+
+  const spec = {
+    title: '渲染方程',
+    items: [
+      { type: 'card', items: [{ type: 'text', size: 'caption', content: '$$L_o = L_e + \\int f_r L_i (n\\cdot\\omega_i)\\,d\\omega_i$$' }] },
+      { type: 'keyvalue', pairs: [{ key: '$L_e$', value: '自发光项' }, { key: '$f_r$', value: 'BRDF' }] },
+      { type: 'callout', content: '实时管线用 IBL 近似' },
+    ],
+  }
+  const html = renderMarkdown('说明：\n\n```dsh-ui\n' + JSON.stringify(spec) + '\n```')
+  assert.doesNotMatch(html, /"items"/)
+  assert.doesNotMatch(html, /"type": "keyvalue"/)
+  assert.match(html, /class="dsn-gui"/)
+  assert.match(html, /dsn-gui-kv-row/)
+  assert.match(html, /class="katex"/)
+
+  // 不是合法 GenUI 规格时退回普通代码块，内容不丢
+  const fallback = renderMarkdown('```dsh-ui\nnot json\n```')
+  assert.match(fallback, /<pre><code data-lang="dsh-ui">not json<\/code><\/pre>/)
+})
