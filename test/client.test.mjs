@@ -460,31 +460,43 @@ test('renderMarkdown renders inline and display LaTeX through KaTeX', async () =
   const code = renderMarkdown('用 `$x$` 表示变量。')
   assert.doesNotMatch(code, /class="katex"/)
   assert.match(code, /<code>\$x\$<\/code>/)
-
-  // 货币符号不误判
-  assert.doesNotMatch(renderMarkdown('价格 $5 和 $6 不算公式。'), /class="katex"/)
 })
 
-test('renderMarkdown turns a dsh-ui fence into readable layout, not raw JSON', async () => {
+test('renderMarkdown keeps money and bare dollar signs literal', async () => {
   const { plugin } = await loadClient()
   const { renderMarkdown } = plugin.__internals
 
-  const spec = {
-    title: '渲染方程',
-    items: [
-      { type: 'card', items: [{ type: 'text', size: 'caption', content: '$$L_o = L_e + \\int f_r L_i (n\\cdot\\omega_i)\\,d\\omega_i$$' }] },
-      { type: 'keyvalue', pairs: [{ key: '$L_e$', value: '自发光项' }, { key: '$f_r$', value: 'BRDF' }] },
-      { type: 'callout', content: '实时管线用 IBL 近似' },
-    ],
+  for (const source of ['价格 $5 和 $6 不算公式。', '区间是 $5-$10。', '从 $3 到 $20 都是。']) {
+    assert.doesNotMatch(renderMarkdown(source), /class="katex"/, source)
   }
-  const html = renderMarkdown('说明：\n\n```dsh-ui\n' + JSON.stringify(spec) + '\n```')
-  assert.doesNotMatch(html, /"items"/)
-  assert.doesNotMatch(html, /"type": "keyvalue"/)
-  assert.match(html, /class="dsn-gui"/)
-  assert.match(html, /dsn-gui-kv-row/)
-  assert.match(html, /class="katex"/)
+})
 
-  // 不是合法 GenUI 规格时退回普通代码块，内容不丢
-  const fallback = renderMarkdown('```dsh-ui\nnot json\n```')
-  assert.match(fallback, /<pre><code data-lang="dsh-ui">not json<\/code><\/pre>/)
+test('renderMarkdown keeps an unclosed display fence from swallowing the rest', async () => {
+  const { plugin } = await loadClient()
+  const { renderMarkdown } = plugin.__internals
+
+  const html = renderMarkdown('$$\n没闭合的公式\n\n# 后面的标题\n\n正文段落')
+  assert.match(html, /<h1>后面的标题<\/h1>/)
+  assert.match(html, /正文段落/)
+  assert.doesNotMatch(html, /dsn-math-block/)
+})
+
+test('renderMarkdown breaks a display formula out of the paragraph around it', async () => {
+  const { plugin } = await loadClient()
+  const { renderMarkdown } = plugin.__internals
+
+  const html = renderMarkdown('前文$$x^2$$后文')
+  assert.match(html, /<p>前文<\/p>/)
+  assert.match(html, /<div class="dsn-math-block">/)
+  assert.match(html, /<p>后文<\/p>/)
+})
+
+test('renderMarkdown refuses to typeset an oversized formula', async () => {
+  const { plugin } = await loadClient()
+  const { renderMarkdown } = plugin.__internals
+
+  const huge = 'x+'.repeat(1500)
+  const html = renderMarkdown('$$' + huge + '$$')
+  assert.match(html, /dsn-math-error/)
+  assert.doesNotMatch(html, /class="katex"/)
 })
